@@ -32,7 +32,7 @@ def generate_text(model, tokenizer, prompt, max_gen_len=500, device="cpu"):
         next_token_logits = logits[:, -1, :]
 
         # Two strategies for generating the next token
-        strategy = "greedy"
+        strategy = "sampling"
         if strategy == "greedy":
             # Greedy: choose the token with highest probability.
             next_token_id = torch.argmax(next_token_logits, dim=-1).unsqueeze(0)
