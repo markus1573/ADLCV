@@ -161,7 +161,12 @@ def main(
         num_tokens=vocab_size,
     )
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
     model = model.to(device)
 
     if START_FROM_PRETRAINED_GPT2_CHECKPOINT:
@@ -197,8 +202,8 @@ def main(
             # Forward pass: outputs has shape (batch_size, seq_len, vocab_size)
             logits = model(inputs)
             # Flatten logits and labels for computing cross entropy loss.
-            logits = logits.view(-1, vocab_size)
-            labels = labels.view(-1)
+            logits = logits.contiguous().view(-1, vocab_size)
+            labels = labels.contiguous().view(-1)
             loss = loss_function(logits, labels)
             loss.backward()
             if gradient_clipping > 0.0:
@@ -224,8 +229,8 @@ def main(
                 inputs = inputs.to(device)
                 labels = labels.to(device)
                 logits = model(inputs)
-                logits = logits.view(-1, vocab_size)
-                labels = labels.view(-1)
+                logits = logits.contiguous().view(-1, vocab_size)
+                labels = labels.contiguous().view(-1)
                 loss = loss_function(logits, labels)
                 val_loss += loss.item() * labels.numel()
                 num_val_tokens += labels.numel()
@@ -247,7 +252,12 @@ def main(
 
 
 if __name__ == "__main__":
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
     print(f"Model will run on {device}")
     set_seed(seed=1)
 

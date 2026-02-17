@@ -47,7 +47,12 @@ def test_transformer_gpt(batch_size=16, seq_len=512, num_tokens=50_000, device="
 
 
 if __name__ == "__main__":
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    if torch.cuda.is_available():
+        device = "cuda"
+    elif torch.backends.mps.is_available():
+        device = "mps"
+    else:
+        device = "cpu"
 
     print("--- Testing Masked Attention Module ---")
     test_attention(batch_size=8, seq_len=512, embed_dim=128, device=device)

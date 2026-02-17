@@ -129,9 +129,7 @@ class PositionalEmbedding(nn.Module):
     def forward(self, x):
         batch_size, seq_length, embed_dim = x.size()
         positions = self.pe(
-            torch.arange(
-                seq_length, device="cuda" if torch.cuda.is_available() else "cpu"
-            )
+            torch.arange(seq_length, device=x.device)
         )
         positions = positions[None, :, :].expand(batch_size, seq_length, embed_dim)
         return x + positions
