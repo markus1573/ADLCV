@@ -19,12 +19,6 @@ def set_seed(seed=1):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
 
-def get_device():
-    """Get the best available device (CUDA > CPU)."""
-    if torch.cuda.is_available():
-        return torch.device('cuda')
-    return torch.device('cpu')
-
 def select_two_classes_from_cifar10(dataset, classes):
     idx = (np.array(dataset.targets) == classes[0]) | (np.array(dataset.targets) == classes[1])
     dataset.targets = np.array(dataset.targets)[idx]
@@ -70,7 +64,7 @@ def main(image_size=(32,32), patch_size=(4,4), channels=3,
          embed_dim=128, num_heads=4, num_layers=4, num_classes=2,
          pos_enc='learnable', pool='cls', dropout=0.3, fc_dim=None, 
          num_epochs=20, batch_size=16, lr=1e-4, warmup_steps=625,
-         weight_decay=1e-3, gradient_clipping=1
+         weight_decay=1e-3, gradient_clipping=1, output_dir='model.pth'
          
     ):
 
@@ -84,8 +78,8 @@ def main(image_size=(32,32), patch_size=(4,4), channels=3,
                 num_classes=num_classes
     )
 
-    device = get_device()
-    model = model.to(device)
+    if torch.cuda.is_available():
+        model = model.to('cuda')
 
     opt = torch.optim.AdamW(lr=lr, params=model.parameters(), weight_decay=weight_decay)
     sch = torch.optim.lr_scheduler.LambdaLR(opt, lambda i: min(i / warmup_steps, 1.0))
@@ -97,7 +91,8 @@ def main(image_size=(32,32), patch_size=(4,4), channels=3,
         model.train()
         train_loss = 0
         for image, label in tqdm.tqdm(train_iter):
-            image, label = image.to(device), label.to(device)
+            if torch.cuda.is_available():
+                image, label = image.to('cuda'), label.to('cuda')
             opt.zero_grad()
             out = model(image)
             loss = loss_function(out, label)
@@ -116,7 +111,8 @@ def main(image_size=(32,32), patch_size=(4,4), channels=3,
             model.eval()
             tot, cor= 0.0, 0.0
             for image, label in test_iter:
-                image, label = image.to(device), label.to(device)
+                if torch.cuda.is_available():
+                    image, label = image.to('cuda'), label.to('cuda')
                 out = model(image)
                 loss = loss_function(out, label)
                 val_loss += loss.item()
@@ -127,13 +123,24 @@ def main(image_size=(32,32), patch_size=(4,4), channels=3,
             val_loss /= len(test_iter)
             print(f'-- train loss {train_loss:.3f} -- validation accuracy {acc:.3f} -- validation loss: {val_loss:.3f}')
             if val_loss <= best_val_loss:
-                torch.save(model.state_dict(), 'model.pth')
+                torch.save(model.state_dict(), output_dir)
                 best_val_loss = val_loss
 
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="Visualize ViT attention on training images"
+    )
+    parser.add_argument("--embed", type=int, default=128)
+    parser.add_argument("--heads", type=int, default=4)
+    parser.add_argument("--layers", type=int, default=4)
+    parser.add_argument("--output-dir", type=str, default="model.pth")
+    parser.add_argument("--seed", type=int, default=1)
+    args = parser.parse_args()
+
     #os.environ["CUDA_VISIBLE_DEVICES"]= str(0)
-    device = get_device()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')  
     print(f"Model will run on {device}")
     set_seed(seed=1)
-    main()
+    main(embed_dim=args.embed, num_heads=args.heads, num_layers=args.layers, output_dir=args.output_dir)

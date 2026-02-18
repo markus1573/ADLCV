@@ -131,7 +131,7 @@ def plot_attention_grid(images, attention_maps, output_dir, prefix="attn"):
         ax[0].set_title("Image")
 
         ax[1].imshow(image_np)
-        alpha_map = attn_np
+        alpha_map = 1 - attn_np
         ax[1].imshow(np.zeros_like(image_np), cmap="gray", alpha=alpha_map)
         ax[1].axis("off")
         ax[1].set_title("Attention")
@@ -150,6 +150,7 @@ def main():
     parser.add_argument("--layer", type=int, default=-1)
     parser.add_argument("--output-dir", type=str, default="attention_viz")
     parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument("--embed-dim", type=int, default=128)
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -164,6 +165,7 @@ def main():
     model = build_model(
         checkpoint_path=checkpoint_path,
         device=device,
+        embed_dim=args.embed_dim,
     )
 
     train_loader, _, _, _ = prepare_dataloaders(batch_size=args.batch_size)
