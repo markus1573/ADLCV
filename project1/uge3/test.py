@@ -1,3 +1,5 @@
+import argparse
+
 import torch
 from gpt import AndersenGPT
 from train import (
@@ -12,7 +14,7 @@ from train import (
 from transformers import AutoTokenizer
 
 
-def generate_text(model, tokenizer, prompt, max_gen_len=500, device="cpu"):
+def generate_text(model, tokenizer, prompt, max_gen_len=500, device="cpu", strategy="greedy", temp = 0.8):
     """
     Given a prompt string, generate a continuation using greedy decoding.
     The prompt is encoded using the pretrained tokenizer.
@@ -32,14 +34,12 @@ def generate_text(model, tokenizer, prompt, max_gen_len=500, device="cpu"):
         next_token_logits = logits[:, -1, :]
 
         # Two strategies for generating the next token
-        strategy = "sampling"
         if strategy == "greedy":
             # Greedy: choose the token with highest probability.
             next_token_id = torch.argmax(next_token_logits, dim=-1).unsqueeze(0)
         elif strategy == "sampling":
             # Multinomial Sampling: Sample from the probability distribution.
-            temperature = 0.8
-            probabilities = torch.softmax(next_token_logits / temperature, dim=-1)
+            probabilities = torch.softmax(next_token_logits / temp, dim=-1)
             next_token_id = torch.multinomial(probabilities, num_samples=1)
 
         # Append predicted token to input_ids
@@ -53,6 +53,18 @@ def generate_text(model, tokenizer, prompt, max_gen_len=500, device="cpu"):
     output_text = tokenizer.decode(input_ids.squeeze(), skip_special_tokens=True)
     return output_text
 
+
+# Standard prompts for evaluation
+PROMPTS = [
+    "Tell a story.",
+    "Can you tell me a story about a great, big tree?",
+]
+STRATEGY = "sampling"  # or "sampling"
+TEMP = 1.2
+if STRATEGY=="greedy":
+    OUTPUT_FILE = "generation_results_greedy.txt"
+else:
+    OUTPUT_FILE = f"generation_results_sampling_{TEMP}.txt"
 
 @torch.no_grad()
 def main():
@@ -89,18 +101,61 @@ def main():
     model.eval()
     print("Model loaded successfully.\n")
 
-    print("Enter a prompt and the model will generate a continuation.")
-    print("Type 'quit' or 'exit' to stop.\n")
-    while True:
-        prompt = input("Prompt: ").strip()  # Stripping is for tokenization weirdness
-        if prompt.lower() in ["quit", "exit"]:
-            break
-        generated_text = generate_text(
-            model, tokenizer, prompt, max_gen_len=500, device=device
-        )
-        print("\n--- Generated Text ---")
-        print(generated_text)
-        print("----------------------\n")
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Generate text with AndersenGPT")
+    parser.add_argument("-i", "--interactive", action="store_true",
+                        help="Enable interactive mode for manual prompts")
+    args = parser.parse_args()
+
+    if args.interactive:
+        # Interactive mode
+        print("Enter a prompt and the model will generate a continuation.")
+        print(f"Type 'quit' or 'exit' to stop. Results will be saved to {OUTPUT_FILE}\n")
+        results = []
+        prompt_num = 0
+        while True:
+            prompt = input("Prompt: ").strip()
+            if prompt.lower() in ["quit", "exit"]:
+                break
+            prompt_num += 1
+            generated_text = generate_text(
+                model, tokenizer, prompt, max_gen_len=500, device=device, strategy = STRATEGY, temp=TEMP
+            )
+            results.append(f"PROMPT {prompt_num}:\n{prompt}\n\nGENERATED:\n{generated_text}\n")
+            print("\n--- Generated Text ---")
+            print(generated_text)
+            print("----------------------\n")
+        
+        # Save results to file
+        if results:
+            with open(OUTPUT_FILE, "w") as f:
+                f.write("\n" + "=" * 60 + "\n\n".join(results))
+                f.write("\n" + "=" * 60 + "\nFINISHED\n")
+            print(f"\nResults saved to {OUTPUT_FILE}")
+    else:
+        # Batch mode with standard prompts
+        results = []
+        for i, prompt in enumerate(PROMPTS, 1):
+            print(f"Generating response for prompt {i}/{len(PROMPTS)}...")
+            generated_text = generate_text(
+                model, tokenizer, prompt, max_gen_len=500, device=device, strategy = STRATEGY, temp=TEMP
+            )
+            results.append(f"PROMPT {i}:\n{prompt}\n\nGENERATED:\n{generated_text}\n")
+            print(f"  Done.")
+
+        # Save results to file
+        with open(OUTPUT_FILE, "w") as f:
+            f.write("\n" + "=" * 60 + "\n\n".join(results))
+            f.write("\n" + "=" * 60 + "\nFINISHED\n")
+
+        print(f"\nResults saved to {OUTPUT_FILE}")
+
+        # Also print to console
+        print("\n" + "=" * 60)
+        for result in results:
+            print(result)
+            print("=" * 60)
+        print("FINISHED")
 
 
 if __name__ == "__main__":
