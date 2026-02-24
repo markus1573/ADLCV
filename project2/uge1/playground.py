@@ -30,7 +30,8 @@ def show(imgs, title=None, fig_titles=None, save_path=None):
         plt.suptitle(title)
     
     if save_path is not None:
-        plt.savefig(save_path, bbox_inches='tight', pad_inches=0)
+        if not os.path.exists(save_path):
+            plt.savefig(save_path, bbox_inches='tight', pad_inches=0)
 
     plt.show()
 
@@ -65,7 +66,8 @@ if __name__ == '__main__':
     plt.plot(range(1,diffusion.T+1), diffusion.betas.cpu().numpy(), label='betas', linewidth=3)
     plt.title('Diffusion parameters')
     plt.legend()
-    plt.savefig('assets/diffusion_params.png', bbox_inches='tight')
+    if not os.path.exists('assets/diffusion_params.png'):
+        plt.savefig('assets/diffusion_params.png', bbox_inches='tight')
     plt.show()
     #####################################################
     
