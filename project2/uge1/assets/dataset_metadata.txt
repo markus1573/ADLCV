@@ -1,0 +1,25 @@
+==================================================
+         SPRITES DATASET  –  METADATA
+==================================================
+
+[File]
+  Path              : /Users/stud_mael/Documents/8. Semester/ADLCV/project2/uge1/data/sprites.npy
+  Format            : NumPy .npy
+  Size on disk      : 65.48 MB
+
+[Array]
+  Shape             : (89400, 16, 16, 3)  (N, H, W, C)
+  Total images      : 89,400
+  Image resolution  : 16 x 16 pixels
+  Color space       : RGB  (3 channels)
+  Data type         : uint8  (1 byte per element)
+  Pixel value range : [0 – 255]
+  Memory (loaded)   : 65.48 MB
+
+[Training usage  (ddpm_train.py defaults)]
+  Subset used       : 40,000 / 89,400 images
+  Batch size        : 8
+  Steps per epoch   : 5,000
+  Normalisation     : [0, 255]  →  [-1, 1]  (ToTensor + Normalize(0.5))
+
+==================================================
