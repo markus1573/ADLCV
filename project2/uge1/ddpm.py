@@ -26,10 +26,18 @@ class Diffusion:
 
     def get_betas(self, schedule='linear'):
         if schedule == 'linear':
-            return ... # HINT: use torch.linspace to create a linear schedule from beta_start to beta_end
+            return torch.linspace(self.beta_start, self.beta_end, self.T)
         # add your own (e.g. cosine)
-        else :
-            raise NotImplementedError('Not implemented!')
+        if schedule == 'cosine': # vibede 100%
+            steps = self.T + 1
+            x = torch.linspace(0, self.T, steps)
+            alphas_bar = torch.cos(((x / steps) + 0.008) / 1.008 * torch.pi / 2) ** 2
+            alphas_bar = alphas_bar / alphas_bar[0]  # Normalize to ensure alpha_bar[0] = 1
+            betas = 1 - (alphas_bar[1:] / alphas_bar[:-1])  # Calculate betas from alpha_bars
+            return betas.clamp(0, 0.999)  # Ensure betas are in the range [0, 0.999]
+        else:
+            raise ValueError(f"Unknown beta schedule: {schedule}")
+            
     
 
     def q_sample(self, x, t):
@@ -43,17 +51,17 @@ class Diffusion:
         Should return q(x_t | x_0), noise
         """
         # TASK 2: Implement the forward process
-        sqrt_alpha_bar =  ... # HINT: use torch.sqrt to calculate the sqrt of alphas_bar at timestep t
+        sqrt_alpha_bar = torch.sqrt(self.alphas_bar[t]) # HINT: use torch.sqrt to calculate the sqrt of alphas_bar at timestep t
         sqrt_alpha_bar = sqrt_alpha_bar[:, None, None, None] # match image dimensions
 
-        sqrt_one_minus_alpha_bar = ... # HINT: calculate the sqrt of 1 - alphas_bar at time step t
+        sqrt_one_minus_alpha_bar = torch.sqrt(1. - self.alphas_bar[t]) # HINT: calculate the sqrt of 1 - alphas_bar at time step t
         sqrt_one_minus_alpha_bar = sqrt_one_minus_alpha_bar[:, None, None, None]# match image dimensions
         
-        noise = ... # HINT: sample noise from a normal distribution. It should match the shape of x 
+        noise = torch.randn_like(x) # HINT: sample noise from a normal distribution. It should match the shape of x 
         assert noise.shape == x.shape, 'Invalid shape of noise'
         
-        x_noised = ... # HINT: Create the noisy version of x. See Eq. 4 in the ddpm paper at page 2
-        return ..., noise
+        x_noised = sqrt_alpha_bar * x + sqrt_one_minus_alpha_bar * noise # HINT: Create the noisy version of x. See Eq. 4 in the ddpm paper at page 2
+        return x_noised, noise
     
 
     def p_mean_std(self, model, x_t, t):
@@ -65,8 +73,8 @@ class Diffusion:
         beta = self.betas[t][:, None, None, None] # match image dimensions
 
         # TASK 3 : Implement the revese process
-        predicted_noise = ... # HINT: use model to predict noise
-        mean = ... # HINT: calculate the mean of the distribution p(x_{t-1} | x_t). See Eq. 11 in the ddpm paper at page 4
+        predicted_noise = model(x_t, t) # HINT: use model to predict noise
+        mean = (1. / torch.sqrt(alpha)) * (x_t - beta * predicted_noise / torch.sqrt(1. - alpha_bar)) # HINT: calculate the mean of the distribution p(x_{t-1} | x_t). See Eq. 11 in the ddpm paper at page 4
         std = torch.sqrt(beta)
 
         return mean, std
@@ -80,9 +88,9 @@ class Diffusion:
         
         # HINT: Having calculate the mean and std of p(x{x_t} | x_t), we sample noise from a normal distribution.
         # see line 3 of the Algorithm 2 (Sampling) at page 4 of the ddpm paper.
-        noise = ...
+        noise = torch.randn_like(x_t)
 
-        x_t_prev = ... # Calculate x_{t-1}, see line 4 of the Algorithm 2 (Sampling) at page 4 of the ddpm paper.
+        x_t_prev = mean + std * noise # Calculate x_{t-1}, see line 4 of the Algorithm 2 (Sampling) at page 4 of the ddpm paper.
         return x_t_prev
 
 
