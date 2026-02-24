@@ -6,7 +6,7 @@ from torch import nn
 import torch.nn.functional as F
 from torchtext import data, datasets, vocab
 import tqdm
-
+import matplotlib.pyplot as plt
 from transformer import TransformerClassifier, to_device
 
 NUM_CLS = 2
@@ -41,7 +41,7 @@ def prepare_data_iter(sampled_ratio=0.2, batch_size=16):
     return train_iter, test_iter
 
 
-def main(embed_dim=128, num_heads=4, num_layers=4, num_epochs=20,
+def main(embed_dim=128, num_heads=4, num_layers=4, num_epochs=40,
          pos_enc='fixed', pool='max', dropout=0.0, fc_dim=None,
          batch_size=16, lr=1e-4, warmup_steps=625, 
          weight_decay=1e-4, gradient_clipping=1
@@ -74,11 +74,12 @@ def main(embed_dim=128, num_heads=4, num_layers=4, num_epochs=20,
     
     opt = torch.optim.AdamW(lr=lr, params=model.parameters(), weight_decay=weight_decay)
     sch = torch.optim.lr_scheduler.LambdaLR(opt, lambda i: min(i / warmup_steps, 1.0))
-
+    final_losses = []
     # training loop
     for e in range(num_epochs):
         print(f'\n epoch {e}')
         model.train()
+        losses = []
         for batch in tqdm.tqdm(train_iter):
             opt.zero_grad()
             input_seq = batch.text[0]
@@ -94,6 +95,10 @@ def main(embed_dim=128, num_heads=4, num_layers=4, num_epochs=20,
                 nn.utils.clip_grad_norm_(model.parameters(), gradient_clipping)
             opt.step()
             sch.step()
+            losses.append(loss.item())
+            
+        average_loss = sum(losses) / len(losses)   
+        final_losses.append(average_loss)
 
         with torch.no_grad():
             model.eval()
@@ -111,6 +116,13 @@ def main(embed_dim=128, num_heads=4, num_layers=4, num_epochs=20,
             print(f'-- {"validation"} accuracy {acc:.3}')
     # save model
     torch.save(model.state_dict(), 'transformer_cls.pt')
+
+    x = np.arange(len(final_losses))
+    plt.plot(x, final_losses)
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.title('Training Loss')
+    plt.savefig('training_loss.png')
 
 if __name__ == "__main__":
     os.environ["CUDA_VISIBLE_DEVICES"]= str(0)
