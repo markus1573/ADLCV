@@ -17,7 +17,7 @@ from model import Classifier
 from util import set_seed, prepare_dataloaders
 
 
-EPOCHS = 20
+EPOCHS = 30
 
 def create_result_folders(experiment_name):
     os.makedirs(os.path.join("weights", experiment_name), exist_ok=True)
