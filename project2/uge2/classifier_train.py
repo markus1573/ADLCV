@@ -63,7 +63,7 @@ def train(device='cpu', T=500, img_size=16, input_channels=3, channels=32, time_
             optimizer.step()
 
             pbar.set_postfix(CrossEntropy=loss.item())
-            logger.add_scalar("CrossEntropy", loss.item(), global_step=epoch * l + i)
+            logger.add_scalar("CrossEntropy", loss.item(), global_step=(epoch-1) * l + i)
 
     
     # save your checkpoint in weights/classifier/model.pth
