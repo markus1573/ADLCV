@@ -44,10 +44,12 @@ def train(device='cpu', T=500, img_size=16, input_channels=3, channels=32, time_
     softmax = nn.Softmax(dim=-1)
     pbar = tqdm(range(1, EPOCHS + 1), desc='Training')
 
+    logger = SummaryWriter(os.path.join("runs", exp_name))
+    l = len(train_loader)
 
     for epoch in pbar:
         model.train()
-        for images, labels in train_loader:
+        for i, (images, labels) in enumerate(train_loader):
             images = images.to(device)
             labels = labels.to(device)
 
@@ -59,6 +61,9 @@ def train(device='cpu', T=500, img_size=16, input_channels=3, channels=32, time_
             loss = loss_fn(output, labels)
             loss.backward()
             optimizer.step()
+
+            pbar.set_postfix(CrossEntropy=loss.item())
+            logger.add_scalar("CrossEntropy", loss.item(), global_step=epoch * l + i)
 
     
     # save your checkpoint in weights/classifier/model.pth
