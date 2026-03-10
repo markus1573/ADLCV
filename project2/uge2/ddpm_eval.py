@@ -65,9 +65,7 @@ def frechet_distance(mu1, sigma1, mu2, sigma2):
         covmean = covmean.real
 
     # 4. Final FID calculation
-    # Tr(sigma1 + sigma2 - 2*covmean)
-    tr_covmean = np.trace(covmean)
-    fid = mean_diff + np.trace(sigma1) + np.trace(sigma2) - 2.0 * tr_covmean
+    fid = mean_diff + np.trace((sigma1 + sigma2 - 2 * covmean))
 
     return fid
 
