@@ -99,7 +99,11 @@ def invert(start_latents, prompt, guidance_scale=3.5, num_inference_steps=80,
         #
         # latents = ...
         # ─────────────────────────────────────────────────────────────────────
-
+        # Calculate the predicted x_0 (clean image) from the noise prediction
+        x0_pred = (latents - torch.sqrt(1 - alpha_t) * noise_pred) / torch.sqrt(alpha_t)
+        # Calculate the next latents (x_{t+1}) using the predicted x_0 and noise
+        latents = torch.sqrt(alpha_t_next) * x0_pred + torch.sqrt(1 - alpha_t_next) * noise_pred
+        # ── End of TODO 2
         intermediate_latents.append(latents)
 
     return torch.cat(intermediate_latents)
@@ -110,46 +114,82 @@ if __name__ == "__main__":
     from torchvision import transforms as tfms
     from diffusers.utils import load_image
     from ddim_sampling import sample
+    from torch.nn.functional import mse_loss
+    from skimage.metrics import structural_similarity as ssim
+    from lpips import LPIPS
+
 
     NUM_STEPS  = 50
     START_STEP = 0   # 0 = full re-sampling from z_T (strictest reconstruction test)
 
-    # Load a sample image and encode it to a latent
-    input_image = load_image(
-        "https://images.pexels.com/photos/8306128/pexels-photo-8306128.jpeg"
-    ).resize((512, 512))
-    input_image_prompt = "Photograph of a puppy on the grass"
+    # # Load a sample image and encode it to a latent
+    # input_image = load_image(
+    #     "https://images.pexels.com/photos/8306128/pexels-photo-8306128.jpeg"
+    # ).resize((512, 512))
+    # input_image_prompt = "Photograph of a puppy on the grass"
 
-    with torch.no_grad():
-        latent = pipe.vae.encode(
-            tfms.functional.to_tensor(input_image).unsqueeze(0).to(device) * 2 - 1
-        )
-    l = vae_scale_factor * latent.latent_dist.sample()
+    image_folder = "images"
+    txt_file = image_folder + "/input.txt"
+    with open(txt_file, "r") as f:
+        lines = f.readlines()
+        for line in lines:
+            image_path, input_image_prompt = line.strip().split(",")
+            input_image = load_image(image_folder + "/" + image_path).resize((512, 512))
+            print(f"Loaded image: {image_path} with prompt: {input_image_prompt}")
 
-    # Run inversion to get the full noisy latent trajectory
-    inverted_latents = invert(l, input_image_prompt, num_inference_steps=NUM_STEPS)
-    print(f"Inverted latents shape: {inverted_latents.shape}")
 
-    # Decode the most-noisy latent to see what pure noise looks like
-    with torch.no_grad():
-        noisy_decoded = pipe.decode_latents(inverted_latents[-1].unsqueeze(0))
-    pipe.numpy_to_pil(noisy_decoded)[0].save("ddim_inverted_noisy.png")
-    print("Saved ddim_inverted_noisy.png")
+            with torch.no_grad():
+                latent = pipe.vae.encode(
+                    tfms.functional.to_tensor(input_image).unsqueeze(0).to(device) * 2 - 1
+                )
+            l = vae_scale_factor * latent.latent_dist.sample()
 
-    # Reconstruct by sampling from the most-noisy inverted latent
-    reconstructed = sample(
-        input_image_prompt,
-        start_latents=inverted_latents[-(START_STEP + 1)][None],
-        start_step=START_STEP,
-        num_inference_steps=NUM_STEPS,
-        guidance_scale=3.5,
-    )
+            # Run inversion to get the full noisy latent trajectory
+            inverted_latents = invert(l, input_image_prompt, num_inference_steps=NUM_STEPS)
+            print(f"Inverted latents shape: {inverted_latents.shape}")
 
-    # Save original and reconstruction side by side
-    fig, axes = plt.subplots(1, 2, figsize=(10, 5))
-    axes[0].imshow(input_image);        axes[0].set_title("Original");        axes[0].axis("off")
-    axes[1].imshow(reconstructed[0]);   axes[1].set_title("DDIM Reconstruction"); axes[1].axis("off")
-    plt.tight_layout()
-    plt.savefig("ddim_reconstruction.png", dpi=150, bbox_inches="tight")
-    plt.close()
-    print("Saved ddim_reconstruction.png")
+            # Decode the most-noisy latent to see what pure noise looks like
+            with torch.no_grad():
+                noisy_decoded = pipe.decode_latents(inverted_latents[-1].unsqueeze(0))
+            pipe.numpy_to_pil(noisy_decoded)[0].save("ddim_inverted_noisy.png")
+            print("Saved ddim_inverted_noisy.png")
+
+            # Reconstruct by sampling from the most-noisy inverted latent
+            reconstructed = sample(
+                input_image_prompt,
+                start_latents=inverted_latents[-(START_STEP + 1)][None],
+                start_step=START_STEP,
+                num_inference_steps=NUM_STEPS,
+                guidance_scale=3.5,
+            )
+
+            # Compute PSNR between the original and reconstructed image
+            original = tfms.functional.to_tensor(input_image).unsqueeze(0).to(device)
+            reconstructed_tensor = tfms.functional.to_tensor(reconstructed[0]).unsqueeze(0).to(device)
+            mse = mse_loss(reconstructed_tensor, original)
+            psnr = 10 * torch.log10(1 / mse)
+
+            # Compute SSIM between the original and reconstructed image
+            original_np = original.squeeze().cpu().numpy().transpose(1, 2, 0)
+            reconstructed_np = reconstructed_tensor.squeeze().cpu().numpy().transpose(1, 2, 0)
+            ssim_score = ssim(original_np, reconstructed_np, channel_axis=-1, data_range=1)
+
+            # Compute LPIPS between the original and reconstructed image
+            lpips_metric = LPIPS(net='alex').to(device)
+            lpips_score = lpips_metric(reconstructed_tensor, original).item()
+        
+
+
+            # Save original and reconstruction side by side
+            fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+            axes[0].imshow(input_image);        axes[0].set_title("Original");        axes[0].axis("off")
+            axes[1].imshow(reconstructed[0]);   axes[1].set_title("DDIM Reconstruction"); axes[1].axis("off")
+            # add metrics as text at the bottom
+            plt.figtext(0.5, 0.01, f"PSNR: {psnr:.2f} dB | SSIM: {ssim_score:.4f} | LPIPS: {lpips_score:.4f}", ha="center", fontsize=10)
+            plt.tight_layout()
+            plt.savefig(f"images_processed_ddim/reconstruction_{image_path.split('.')[0]}.png", dpi=150, bbox_inches="tight")
+            plt.close()
+            with open(f"images_processed_ddim/metrics.txt", "a") as f:
+                f.write(f"Image: {image_path.split('.')[0]}\n")
+                f.write(f"PSNR: {psnr:.2f} dB | SSIM: {ssim_score:.4f} | LPIPS: {lpips_score:.4f}\n")
+            print(f"Saved reconstruction_{image_path.split('.')[0]}.png")
