@@ -115,6 +115,14 @@ def sample(prompt, start_step=0, start_latents=None,
         # latents = ...
         # ─────────────────────────────────────────────────────────────────────
 
+            # Recover the predicted clean image x_0 from x_t and ε
+        x0_pred = (latents - torch.sqrt(1 - alpha_t) * noise_pred) / torch.sqrt(alpha_t)
+        # Project x_0 to x_{t-1}
+        latents = torch.sqrt(alpha_t_prev) * x0_pred + torch.sqrt(1 - alpha_t_prev) * noise_pred
+
+
+
+
     # Decode the final latent back to pixel space
     images = pipe.decode_latents(latents)
     images = pipe.numpy_to_pil(images)

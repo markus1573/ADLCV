@@ -157,6 +157,10 @@ def aggregate_attention_maps(attention_maps, num_heads, res=16):
     -------
     Tensor, shape (num_text_tokens, res, res)
     """
+
+
+
+
     # ── TODO ──────────────────────────────────────────────────────────────────
     # 1. Filter `attention_maps` to keep only layers whose spatial dimension
     #    matches res*res (i.e. attention_maps[i].shape[1] == res*res).
@@ -174,7 +178,26 @@ def aggregate_attention_maps(attention_maps, num_heads, res=16):
     # avg_map = ...  # shape: (num_text_tokens, res, res)
     # return avg_map
     # ─────────────────────────────────────────────────────────────────────────
-    raise NotImplementedError("Implement aggregate_attention_maps (TODO above)")
+
+    filtered = [m for m in attention_maps if m.shape[1] == res * res]
+    if not filtered:
+        raise ValueError(f"No attention maps found with spatial dimension {res}x{res}.")
+
+    per_layer = []
+    for m in filtered:
+        # (num_heads, H*W, seq) → (1, heads, H*W, seq)
+        m = m.reshape(1, num_heads, res * res, -1)
+        # average over heads → (1, H*W, seq)
+        m = m.mean(dim=1)
+        # (1, H*W, seq) → (1, seq, res, res)
+        m = m.permute(0, 2, 1).reshape(1, -1, res, res)
+        per_layer.append(m)
+
+    # Stack and average over layers → (1, seq, res, res)
+    avg_map = torch.stack(per_layer, dim=0).mean(dim=0)
+
+    # Remove batch dim → (seq, res, res)
+    return avg_map.squeeze(0)
 
 
 @torch.no_grad()

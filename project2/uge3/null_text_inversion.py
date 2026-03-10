@@ -131,7 +131,7 @@ def null_text_inversion(start_latents, prompt, guidance_scale=7.5,
             #
             # noise_pred = ...
             # ────────────────────────────────────────────────────────────────────
-
+            noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
             # ── TODO 4 ──────────────────────────────────────────────────────────
             # Use the scheduler to predict the next (less noisy) latent.
             # This is a single DDIM backward step from `latents` using `noise_pred`.
@@ -139,7 +139,7 @@ def null_text_inversion(start_latents, prompt, guidance_scale=7.5,
             #
             # z_pred = ...
             # ────────────────────────────────────────────────────────────────────
-
+            z_pred = pipe.scheduler.step(noise_pred, t, latents).prev_sample
             # ── TODO 5 ──────────────────────────────────────────────────────────
             # Compute the MSE loss between z_pred and the pivot target,
             # then run one optimization step.
@@ -150,7 +150,10 @@ def null_text_inversion(start_latents, prompt, guidance_scale=7.5,
             # loss.backward()
             # optimizer.step()
             # ────────────────────────────────────────────────────────────────────
-
+            loss = F.mse_loss(z_pred, pivot)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
         # Save this timestep's optimized null-text and advance the running latent
         all_null_texts.append(null_text_emb.detach().cpu())
         latents = z_pred.detach()  # noqa: F821  (defined in TODO 4)
