@@ -87,7 +87,7 @@ def train(T=500, cfg=True, img_size=16, input_channels=3, channels=32,
             
 
             t = torch.randint(0, T, (images.size(0),), device=device).long()
-            x_t, noise = diffusion.add_noise(images, t)
+            x_t, noise = diffusion.q_sample(images, t)
             predicted_noise = model(x_t, t, labels)
             loss = mse(predicted_noise, noise)
 
