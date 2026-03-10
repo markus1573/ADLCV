@@ -1,6 +1,6 @@
 import os
 import matplotlib.pyplot as plt
-from scipy import linalg
+from scipy.linalg import sqrtm
 from tqdm import tqdm
 
 # torch
@@ -49,11 +49,23 @@ def feature_statistics(features):
     return mu, sigma
 
 def frechet_distance(mu1, sigma1, mu2, sigma2):
-    # https://en.wikipedia.org/wiki/Fr%C3%A9chet_distance
-    # HINT: https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.sqrtm.html
-    # Implement FID score
+    # 1. Squared difference of means: ||mu1 - mu2||^2
+    diff = mu1 - mu2
+    # Ensure it's a scalar (dot product of the vector with itself)
+    mean_diff = diff.dot(diff)
 
-    fid = ...
+    # 2. Matrix square root: sqrt(sigma1 @ sigma2)
+    # Note: Use scipy.linalg.sqrtm
+    covmean, _ = sqrtm(sigma1 @ sigma2, disp=False)
+    
+    # 3. Numerical stability check
+    # If the product sigma1 @ sigma2 has negative eigenvalues due to 
+    # precision errors, sqrtm will return complex numbers.
+    if np.iscomplexobj(covmean):
+        covmean = covmean.real
+
+    # 4. Final FID calculation
+    fid = mean_diff + np.trace((sigma1 + sigma2 - 2 * covmean))
 
     return fid
 
