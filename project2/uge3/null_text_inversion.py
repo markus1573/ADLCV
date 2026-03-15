@@ -166,6 +166,8 @@ if __name__ == "__main__":
     from torchvision import transforms as tfms
     from diffusers.utils import load_image
     from ddim_sampling import sample
+    from skimage.metrics import structural_similarity as ssim
+    from lpips import LPIPS
 
     # Load and encode the input image
     # input_image = load_image(
@@ -215,7 +217,7 @@ if __name__ == "__main__":
             # Compute PSNR between the original and reconstructed image
             original = tfms.functional.to_tensor(input_image).unsqueeze(0).to(device)
             reconstructed_tensor = tfms.functional.to_tensor(reconstructed[0]).unsqueeze(0).to(device)
-            mse = mse_loss(reconstructed_tensor, original)
+            mse = F.mse_loss(reconstructed_tensor, original)
             psnr = 10 * torch.log10(1 / mse)
 
             # Compute SSIM between the original and reconstructed image
@@ -232,7 +234,7 @@ if __name__ == "__main__":
                         # Save original and reconstruction side by side
             fig, axes = plt.subplots(1, 2, figsize=(10, 5))
             axes[0].imshow(input_image);        axes[0].set_title("Original");        axes[0].axis("off")
-            axes[1].imshow(reconstructed[0]);   axes[1].set_title("DDIM Reconstruction"); axes[1].axis("off")
+            axes[1].imshow(reconstructed[0]);   axes[1].set_title("Null-Text Reconstruction"); axes[1].axis("off")
             # add metrics as text at the bottom
             plt.figtext(0.5, 0.01, f"PSNR: {psnr:.2f} dB | SSIM: {ssim_score:.4f} | LPIPS: {lpips_score:.4f}", ha="center", fontsize=10)
             plt.tight_layout()

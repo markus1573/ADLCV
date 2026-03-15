@@ -6,12 +6,12 @@
 #BSUB -R "span[hosts=1]"                  # Number of CPU cores
 #BSUB -R "rusage[mem=4GB]"       # Memory per core in MB
 #BSUB -W 5:00                    # Walltime (HH:MM)
-#BSUB -q gpua100                   # Queue name
+#BSUB -q gpuv100                   # Queue name
 #BSUB -gpu "num=1:mode=exclusive_process"
 
 source /zhome/5f/a/186998/miniconda3/bin/activate computer_vison
 
-cd ~/Documents/ADLCV/project2/uge2
+cd ~/Documents/ADLCV/project2/uge3
 
 python null_text_inversion.py
 
