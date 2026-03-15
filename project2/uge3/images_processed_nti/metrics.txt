@@ -1,0 +1,38 @@
+Image: cat
+PSNR: 18.49 dB | SSIM: 0.6299 | LPIPS: 0.4285
+Image: cowgrass
+PSNR: 16.40 dB | SSIM: 0.2891 | LPIPS: 0.3321
+Image: dogsidewalk
+PSNR: 18.85 dB | SSIM: 0.6812 | LPIPS: 0.3545
+Image: jellyfish
+PSNR: 27.58 dB | SSIM: 0.8586 | LPIPS: 0.1503
+Image: landscapewaterfall
+PSNR: 23.77 dB | SSIM: 0.6500 | LPIPS: 0.0919
+Image: lion
+PSNR: 18.33 dB | SSIM: 0.6274 | LPIPS: 0.1912
+Image: rainbow
+PSNR: 18.36 dB | SSIM: 0.7087 | LPIPS: 0.3263
+Image: sunflowerbee
+PSNR: 22.19 dB | SSIM: 0.7294 | LPIPS: 0.2243
+Image: twopuppies
+PSNR: 20.16 dB | SSIM: 0.6356 | LPIPS: 0.3947
+Image: cat
+PSNR: 18.50 dB | SSIM: 0.6295 | LPIPS: 0.4292
+Image: cowgrass
+PSNR: 16.40 dB | SSIM: 0.2891 | LPIPS: 0.3322
+Image: dogsidewalk
+PSNR: 18.85 dB | SSIM: 0.6811 | LPIPS: 0.3546
+Image: jellyfish
+PSNR: 27.51 dB | SSIM: 0.8574 | LPIPS: 0.1523
+Image: landscapewaterfall
+PSNR: 23.77 dB | SSIM: 0.6500 | LPIPS: 0.0919
+Image: lion
+PSNR: 18.33 dB | SSIM: 0.6279 | LPIPS: 0.1903
+Image: rainbow
+PSNR: 18.35 dB | SSIM: 0.7077 | LPIPS: 0.3272
+Image: sunflowerbee
+PSNR: 22.19 dB | SSIM: 0.7296 | LPIPS: 0.2241
+Image: twopuppies
+PSNR: 20.14 dB | SSIM: 0.6389 | LPIPS: 0.3907
+Image: wolf
+PSNR: 17.92 dB | SSIM: 0.4506 | LPIPS: 0.2756

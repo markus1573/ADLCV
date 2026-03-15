@@ -1,0 +1,63 @@
+Loaded image: cat.jpg with prompt:  photograph of cat on grass
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+
+------------------------------------------------------------
+Sender: LSF System <lsfadmin@hpc.dtu.dk>
+Subject: Job 28031922: <adlcv_project2> in cluster <dcc> Exited
+
+Job <adlcv_project2> was submitted from host <gbarlogin1> by user <s224225> in cluster <dcc> at Thu Mar 12 14:12:54 2026
+Job was executed on host(s) <4*n-62-18-12>, in queue <gpua100>, as user <s224225> in cluster <dcc> at Thu Mar 12 15:16:42 2026
+</zhome/5f/a/186998> was used as the home directory.
+</zhome/5f/a/186998/Documents/ADLCV/project2/uge3> was used as the working directory.
+Started at Thu Mar 12 15:16:42 2026
+Terminated at Thu Mar 12 15:23:15 2026
+Results reported at Thu Mar 12 15:23:15 2026
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+#!/bin/bash
+#BSUB -J adlcv_project2              # Job name
+#BSUB -o job_scripts/output.%J.out            # Standard output file (%J = Job ID)
+#BSUB -e job_scripts/error.%J.err             # Standard error file
+#BSUB -n 4
+#BSUB -R "span[hosts=1]"                  # Number of CPU cores
+#BSUB -R "rusage[mem=4GB]"       # Memory per core in MB
+#BSUB -W 5:00                    # Walltime (HH:MM)
+#BSUB -q gpua100                   # Queue name
+#BSUB -gpu "num=1:mode=exclusive_process"
+
+source /zhome/5f/a/186998/miniconda3/bin/activate computer_vison
+
+cd ~/Documents/ADLCV/project2/uge3
+
+python null_text_inversion.py
+
+
+------------------------------------------------------------
+
+Exited with exit code 1.
+
+Resource usage summary:
+
+    CPU time :                                   143.00 sec.
+    Max Memory :                                 1243 MB
+    Average Memory :                             869.00 MB
+    Total Requested Memory :                     16384.00 MB
+    Delta Memory :                               15141.00 MB
+    Max Swap :                                   -
+    Max Processes :                              4
+    Max Threads :                                17
+    Run time :                                   394 sec.
+    Turnaround time :                            4221 sec.
+
+The output (if any) is above this job summary.
+
+
+
+PS:
+
+Read file <job_scripts/error.28031922.err> for stderr output of this job.
+
