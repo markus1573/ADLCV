@@ -240,7 +240,7 @@ if __name__ == "__main__":
             plt.tight_layout()
             plt.savefig(f"images_processed_nti_v2/reconstruction_{image_path.split('.')[0]}.png", dpi=150, bbox_inches="tight")
             plt.close()
-            with open(f"images_processed_nti/metrics.txt", "a") as f:
+            with open(f"images_processed_nti_v2/metrics.txt", "a") as f:
                 f.write(f"Image: {image_path.split('.')[0]}\n")
                 f.write(f"PSNR: {psnr:.2f} dB | SSIM: {ssim_score:.4f} | LPIPS: {lpips_score:.4f}\n")
             print(f"Saved reconstruction_{image_path.split('.')[0]}.png")
