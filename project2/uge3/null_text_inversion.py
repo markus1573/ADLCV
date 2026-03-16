@@ -238,7 +238,7 @@ if __name__ == "__main__":
             # add metrics as text at the bottom
             plt.figtext(0.5, 0.01, f"PSNR: {psnr:.2f} dB | SSIM: {ssim_score:.4f} | LPIPS: {lpips_score:.4f}", ha="center", fontsize=10)
             plt.tight_layout()
-            plt.savefig(f"images_processed_nti/reconstruction_{image_path.split('.')[0]}.png", dpi=150, bbox_inches="tight")
+            plt.savefig(f"images_processed_nti_v2/reconstruction_{image_path.split('.')[0]}.png", dpi=150, bbox_inches="tight")
             plt.close()
             with open(f"images_processed_nti/metrics.txt", "a") as f:
                 f.write(f"Image: {image_path.split('.')[0]}\n")
