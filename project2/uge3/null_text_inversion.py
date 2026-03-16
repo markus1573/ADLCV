@@ -94,7 +94,7 @@ def null_text_inversion(start_latents, prompt, guidance_scale=7.5,
     # We optimize a single embedding and carry it forward across timesteps,
     # which is faster than re-initializing from the generic uncond_emb each time.
     null_text_emb = uncond_emb.clone().detach().requires_grad_(True)
-    optimizer     = torch.optim.Adam([null_text_emb], lr=lr)
+    
 
     # ── Step 4: Online optimization ────────────────────────────────────────────
     # For each sampling step i (large t → small t):
@@ -109,7 +109,7 @@ def null_text_inversion(start_latents, prompt, guidance_scale=7.5,
 
     for t, pivot in tqdm(pairs):
         pivot = pivot.to(device)
-
+        optimizer = torch.optim.Adam([null_text_emb], lr=lr)
         # Conditional prediction is fixed at this timestep — compute once (no grad)
         latent_input = pipe.scheduler.scale_model_input(latents.detach(), t)
         with torch.no_grad():
