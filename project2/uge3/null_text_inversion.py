@@ -23,7 +23,7 @@ import torch
 import torch.nn.functional as F
 from tqdm.auto import tqdm
 from pipeline_setup import pipe, device, vae_scale_factor
-
+import matplotlib.pyplot as plt
 
 def null_text_inversion(start_latents, prompt, guidance_scale=7.5,
                         num_inference_steps=50, num_opt_steps=10, lr=1e-2,
@@ -94,7 +94,7 @@ def null_text_inversion(start_latents, prompt, guidance_scale=7.5,
     # We optimize a single embedding and carry it forward across timesteps,
     # which is faster than re-initializing from the generic uncond_emb each time.
     null_text_emb = uncond_emb.clone().detach().requires_grad_(True)
-    optimizer     = torch.optim.Adam([null_text_emb], lr=lr)
+    
 
     # ── Step 4: Online optimization ────────────────────────────────────────────
     # For each sampling step i (large t → small t):
@@ -109,7 +109,7 @@ def null_text_inversion(start_latents, prompt, guidance_scale=7.5,
 
     for t, pivot in tqdm(pairs):
         pivot = pivot.to(device)
-
+        optimizer = torch.optim.Adam([null_text_emb], lr=lr)
         # Conditional prediction is fixed at this timestep — compute once (no grad)
         latent_input = pipe.scheduler.scale_model_input(latents.detach(), t)
         with torch.no_grad():
@@ -166,39 +166,81 @@ if __name__ == "__main__":
     from torchvision import transforms as tfms
     from diffusers.utils import load_image
     from ddim_sampling import sample
+    from skimage.metrics import structural_similarity as ssim
+    from lpips import LPIPS
 
     # Load and encode the input image
-    input_image = load_image(
-        "https://images.pexels.com/photos/8306128/pexels-photo-8306128.jpeg"
-    ).resize((512, 512))
-    input_image_prompt = "Photograph of a puppy on the grass"
+    # input_image = load_image(
+    #     "https://images.pexels.com/photos/8306128/pexels-photo-8306128.jpeg"
+    # ).resize((512, 512))
+    # input_image_prompt = "Photograph of a puppy on the grass"
+    image_folder = "images"
+    txt_file = image_folder + "/input.txt"
+    with open(txt_file, "r") as f:
+        lines = f.readlines()
+        for line in lines:
+            image_path, input_image_prompt = line.strip().split(",")
+            input_image = load_image(image_folder + "/" + image_path).resize((512, 512))
+            print(f"Loaded image: {image_path} with prompt: {input_image_prompt}")
 
-    with torch.no_grad():
-        latent = pipe.vae.encode(
-            tfms.functional.to_tensor(input_image).unsqueeze(0).to(device) * 2 - 1
-        )
-    l = vae_scale_factor * latent.latent_dist.sample()
+                    
+            with torch.no_grad():
+                latent = pipe.vae.encode(
+                    tfms.functional.to_tensor(input_image).unsqueeze(0).to(device) * 2 - 1
+                )
+            l = vae_scale_factor * latent.latent_dist.sample()
 
-    NUM_STEPS = 50
+            NUM_STEPS = 50
 
-    # Run Null-Text Inversion
-    z_T, all_null_texts = null_text_inversion(
-        l, input_image_prompt,
-        guidance_scale=7.5,
-        num_inference_steps=NUM_STEPS,
-        num_opt_steps=10,
-        lr=1e-2,
-    )
-    print(f"z_T shape: {z_T.shape}, num null texts: {len(all_null_texts)}")
+            # Run Null-Text Inversion
+            z_T, all_null_texts = null_text_inversion(
+                l, input_image_prompt,
+                guidance_scale=7.5,
+                num_inference_steps=NUM_STEPS,
+                num_opt_steps=10,
+                lr=1e-2,
+            )
+            print(f"z_T shape: {z_T.shape}, num null texts: {len(all_null_texts)}")
 
-    # Reconstruct the image using the optimized null texts
-    reconstructed = sample(
-        input_image_prompt,
-        start_latents=z_T.to(device),
-        guidance_scale=7.5,
-        num_inference_steps=NUM_STEPS,
-        null_texts=all_null_texts,
-    )
-    reconstructed[0].save("nti_reconstruction.png")
-    input_image.save("nti_original.png")
-    print("Saved nti_reconstruction.png and nti_original.png")
+            # Reconstruct the image using the optimized null texts
+            reconstructed = sample(
+                input_image_prompt,
+                start_latents=z_T.to(device),
+                guidance_scale=7.5,
+                num_inference_steps=NUM_STEPS,
+                null_texts=all_null_texts,
+            )
+            # reconstructed[0].save("nti_reconstruction.png")
+            # input_image.save("nti_original.png")
+            # print("Saved nti_reconstruction.png and nti_original.png")
+
+            # Compute PSNR between the original and reconstructed image
+            original = tfms.functional.to_tensor(input_image).unsqueeze(0).to(device)
+            reconstructed_tensor = tfms.functional.to_tensor(reconstructed[0]).unsqueeze(0).to(device)
+            mse = F.mse_loss(reconstructed_tensor, original)
+            psnr = 10 * torch.log10(1 / mse)
+
+            # Compute SSIM between the original and reconstructed image
+            original_np = original.squeeze().cpu().numpy().transpose(1, 2, 0)
+            reconstructed_np = reconstructed_tensor.squeeze().cpu().numpy().transpose(1, 2, 0)
+            ssim_score = ssim(original_np, reconstructed_np, channel_axis=-1, data_range=1)
+
+            # Compute LPIPS between the original and reconstructed image
+            lpips_metric = LPIPS(net='alex').to(device)
+            lpips_score = lpips_metric(reconstructed_tensor, original).item()
+
+
+
+                        # Save original and reconstruction side by side
+            fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+            axes[0].imshow(input_image);        axes[0].set_title("Original");        axes[0].axis("off")
+            axes[1].imshow(reconstructed[0]);   axes[1].set_title("Null-Text Reconstruction"); axes[1].axis("off")
+            # add metrics as text at the bottom
+            plt.figtext(0.5, 0.01, f"PSNR: {psnr:.2f} dB | SSIM: {ssim_score:.4f} | LPIPS: {lpips_score:.4f}", ha="center", fontsize=10)
+            plt.tight_layout()
+            plt.savefig(f"images_processed_nti_v2/reconstruction_{image_path.split('.')[0]}.png", dpi=150, bbox_inches="tight")
+            plt.close()
+            with open(f"images_processed_nti_v2/metrics.txt", "a") as f:
+                f.write(f"Image: {image_path.split('.')[0]}\n")
+                f.write(f"PSNR: {psnr:.2f} dB | SSIM: {ssim_score:.4f} | LPIPS: {lpips_score:.4f}\n")
+            print(f"Saved reconstruction_{image_path.split('.')[0]}.png")

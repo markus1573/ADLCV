@@ -1,0 +1,10 @@
+cat.jpg, photograph of cat on grass
+cowgrass.jpg, photograph of cow on grass
+dogsidewalk.jpg, photograph of dog on side walk
+jellyfish.jpg, photograph of jellyfish in water
+landscapewaterfall.jpg, photograph of landscape with waterfall
+lion.jpg, photograph of lion on rock
+rainbow.jpg, photograph of rainbow in landscape
+sunflowerbee.jpg, photograph of sunflower with bee
+twopuppies.jpg, photograph of two puppies on grass
+wolf.jpg, photograph of wolf on grass

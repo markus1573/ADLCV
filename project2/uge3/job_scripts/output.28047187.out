@@ -1,0 +1,120 @@
+Loaded image: cat.jpg with prompt:  photograph of cat on grass
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /zhome/e0/2/186897/miniconda3/envs/ADLCV/lib/python3.10/site-packages/lpips/weights/v0.1/alex.pth
+Saved reconstruction_cat.png
+Loaded image: cowgrass.jpg with prompt:  photograph of cow on grass
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /zhome/e0/2/186897/miniconda3/envs/ADLCV/lib/python3.10/site-packages/lpips/weights/v0.1/alex.pth
+Saved reconstruction_cowgrass.png
+Loaded image: dogsidewalk.jpg with prompt:  photograph of dog on side walk
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /zhome/e0/2/186897/miniconda3/envs/ADLCV/lib/python3.10/site-packages/lpips/weights/v0.1/alex.pth
+Saved reconstruction_dogsidewalk.png
+Loaded image: jellyfish.jpg with prompt:  photograph of jellyfish in water
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /zhome/e0/2/186897/miniconda3/envs/ADLCV/lib/python3.10/site-packages/lpips/weights/v0.1/alex.pth
+Saved reconstruction_jellyfish.png
+Loaded image: landscapewaterfall.jpg with prompt:  photograph of landscape with waterfall
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /zhome/e0/2/186897/miniconda3/envs/ADLCV/lib/python3.10/site-packages/lpips/weights/v0.1/alex.pth
+Saved reconstruction_landscapewaterfall.png
+Loaded image: lion.jpg with prompt:  photograph of lion on rock
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /zhome/e0/2/186897/miniconda3/envs/ADLCV/lib/python3.10/site-packages/lpips/weights/v0.1/alex.pth
+Saved reconstruction_lion.png
+Loaded image: rainbow.jpg with prompt:  photograph of rainbow in landscape
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /zhome/e0/2/186897/miniconda3/envs/ADLCV/lib/python3.10/site-packages/lpips/weights/v0.1/alex.pth
+Saved reconstruction_rainbow.png
+Loaded image: sunflowerbee.jpg with prompt:  photograph of sunflower with bee
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /zhome/e0/2/186897/miniconda3/envs/ADLCV/lib/python3.10/site-packages/lpips/weights/v0.1/alex.pth
+Saved reconstruction_sunflowerbee.png
+Loaded image: twopuppies.jpg with prompt:  photograph of two puppies on grass
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /zhome/e0/2/186897/miniconda3/envs/ADLCV/lib/python3.10/site-packages/lpips/weights/v0.1/alex.pth
+Saved reconstruction_twopuppies.png
+Loaded image: wolf.jpg with prompt:  photograph of wolf on grass
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /zhome/e0/2/186897/miniconda3/envs/ADLCV/lib/python3.10/site-packages/lpips/weights/v0.1/alex.pth
+Saved reconstruction_wolf.png
+
+------------------------------------------------------------
+Sender: LSF System <lsfadmin@hpc.dtu.dk>
+Subject: Job 28047187: <adlcv_project2> in cluster <dcc> Done
+
+Job <adlcv_project2> was submitted from host <gbarlogin1> by user <s224384> in cluster <dcc> at Mon Mar 16 12:08:15 2026
+Job was executed on host(s) <4*n-62-20-5>, in queue <gpuv100>, as user <s224384> in cluster <dcc> at Mon Mar 16 12:08:17 2026
+</zhome/e0/2/186897> was used as the home directory.
+</work3/s224384/ADLCV/project2/uge3> was used as the working directory.
+Started at Mon Mar 16 12:08:17 2026
+Terminated at Mon Mar 16 12:38:04 2026
+Results reported at Mon Mar 16 12:38:04 2026
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+#!/bin/bash
+#BSUB -J adlcv_project2              # Job name
+#BSUB -o job_scripts/output.%J.out            # Standard output file (%J = Job ID)
+#BSUB -e job_scripts/error.%J.err             # Standard error file
+#BSUB -n 4
+#BSUB -R "span[hosts=1]"                  # Number of CPU cores
+#BSUB -R "rusage[mem=4GB]"       # Memory per core in MB
+#BSUB -W 5:00                    # Walltime (HH:MM)
+#BSUB -q gpuv100                   # Queue name
+#BSUB -gpu "num=1:mode=exclusive_process"
+
+source ~/miniconda3/bin/activate ADLCV
+
+# cd ~/Documents/ADLCV/project2/uge3
+
+python null_text_inversion.py
+
+
+------------------------------------------------------------
+
+Successfully completed.
+
+Resource usage summary:
+
+    CPU time :                                   2034.00 sec.
+    Max Memory :                                 1514 MB
+    Average Memory :                             1323.07 MB
+    Total Requested Memory :                     16384.00 MB
+    Delta Memory :                               14870.00 MB
+    Max Swap :                                   -
+    Max Processes :                              4
+    Max Threads :                                15
+    Run time :                                   1895 sec.
+    Turnaround time :                            1789 sec.
+
+The output (if any) is above this job summary.
+
+
+
+PS:
+
+Read file <job_scripts/error.28047187.err> for stderr output of this job.
+

@@ -1,0 +1,20 @@
+Image: cat
+PSNR: 18.70 dB | SSIM: 0.6603 | LPIPS: 0.3778
+Image: cowgrass
+PSNR: 18.63 dB | SSIM: 0.3508 | LPIPS: 0.1870
+Image: dogsidewalk
+PSNR: 22.66 dB | SSIM: 0.8279 | LPIPS: 0.1827
+Image: jellyfish
+PSNR: 29.42 dB | SSIM: 0.8724 | LPIPS: 0.1058
+Image: landscapewaterfall
+PSNR: 24.78 dB | SSIM: 0.6676 | LPIPS: 0.0714
+Image: lion
+PSNR: 18.81 dB | SSIM: 0.6521 | LPIPS: 0.1653
+Image: rainbow
+PSNR: 22.78 dB | SSIM: 0.8408 | LPIPS: 0.1216
+Image: sunflowerbee
+PSNR: 21.33 dB | SSIM: 0.6953 | LPIPS: 0.3202
+Image: twopuppies
+PSNR: 20.86 dB | SSIM: 0.6459 | LPIPS: 0.3736
+Image: wolf
+PSNR: 20.93 dB | SSIM: 0.5510 | LPIPS: 0.1866

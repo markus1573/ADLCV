@@ -1,0 +1,117 @@
+Loaded image: cat.jpg with prompt:  photograph of cat on grass
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /zhome/5f/a/186998/miniconda3/envs/computer_vison/lib/python3.12/site-packages/lpips/weights/v0.1/alex.pth
+Saved reconstruction_cat.png
+Loaded image: cowgrass.jpg with prompt:  photograph of cow on grass
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /zhome/5f/a/186998/miniconda3/envs/computer_vison/lib/python3.12/site-packages/lpips/weights/v0.1/alex.pth
+Saved reconstruction_cowgrass.png
+Loaded image: dogsidewalk.jpg with prompt:  photograph of dog on side walk
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /zhome/5f/a/186998/miniconda3/envs/computer_vison/lib/python3.12/site-packages/lpips/weights/v0.1/alex.pth
+Saved reconstruction_dogsidewalk.png
+Loaded image: jellyfish.jpg with prompt:  photograph of jellyfish in water
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /zhome/5f/a/186998/miniconda3/envs/computer_vison/lib/python3.12/site-packages/lpips/weights/v0.1/alex.pth
+Saved reconstruction_jellyfish.png
+Loaded image: landscapewaterfall.jpg with prompt:  photograph of landscape with waterfall
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /zhome/5f/a/186998/miniconda3/envs/computer_vison/lib/python3.12/site-packages/lpips/weights/v0.1/alex.pth
+Saved reconstruction_landscapewaterfall.png
+Loaded image: lion.jpg with prompt:  photograph of lion on rock
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /zhome/5f/a/186998/miniconda3/envs/computer_vison/lib/python3.12/site-packages/lpips/weights/v0.1/alex.pth
+Saved reconstruction_lion.png
+Loaded image: rainbow.jpg with prompt:  photograph of rainbow in landscape
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /zhome/5f/a/186998/miniconda3/envs/computer_vison/lib/python3.12/site-packages/lpips/weights/v0.1/alex.pth
+Saved reconstruction_rainbow.png
+Loaded image: sunflowerbee.jpg with prompt:  photograph of sunflower with bee
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /zhome/5f/a/186998/miniconda3/envs/computer_vison/lib/python3.12/site-packages/lpips/weights/v0.1/alex.pth
+Saved reconstruction_sunflowerbee.png
+Loaded image: twopuppies.jpg with prompt:  photograph of two puppies on grass
+Optimizing null-text embeddings (online)…
+z_T shape: torch.Size([1, 4, 64, 64]), num null texts: 49
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /zhome/5f/a/186998/miniconda3/envs/computer_vison/lib/python3.12/site-packages/lpips/weights/v0.1/alex.pth
+Saved reconstruction_twopuppies.png
+Loaded image: wolf.jpg with prompt:  photograph of wolf on grass
+Optimizing null-text embeddings (online)…
+
+------------------------------------------------------------
+Sender: LSF System <lsfadmin@hpc.dtu.dk>
+Subject: Job 28037453: <adlcv_project2> in cluster <dcc> Exited
+
+Job <adlcv_project2> was submitted from host <gbarlogin1> by user <s224225> in cluster <dcc> at Fri Mar 13 13:12:45 2026
+Job was executed on host(s) <4*n-62-20-3>, in queue <gpuv100>, as user <s224225> in cluster <dcc> at Fri Mar 13 13:12:45 2026
+</zhome/5f/a/186998> was used as the home directory.
+</zhome/5f/a/186998/Documents/ADLCV/project2/uge3> was used as the working directory.
+Started at Fri Mar 13 13:12:45 2026
+Terminated at Fri Mar 13 13:38:59 2026
+Results reported at Fri Mar 13 13:38:59 2026
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+#!/bin/bash
+#BSUB -J adlcv_project2              # Job name
+#BSUB -o job_scripts/output.%J.out            # Standard output file (%J = Job ID)
+#BSUB -e job_scripts/error.%J.err             # Standard error file
+#BSUB -n 4
+#BSUB -R "span[hosts=1]"                  # Number of CPU cores
+#BSUB -R "rusage[mem=4GB]"       # Memory per core in MB
+#BSUB -W 5:00                    # Walltime (HH:MM)
+#BSUB -q gpuv100                   # Queue name
+#BSUB -gpu "num=1:mode=exclusive_process"
+
+source /zhome/5f/a/186998/miniconda3/bin/activate computer_vison
+
+cd ~/Documents/ADLCV/project2/uge3
+
+python null_text_inversion.py
+
+
+------------------------------------------------------------
+
+TERM_OWNER: job killed by owner.
+Exited with exit code 130.
+
+Resource usage summary:
+
+    CPU time :                                   1878.00 sec.
+    Max Memory :                                 1670 MB
+    Average Memory :                             1392.54 MB
+    Total Requested Memory :                     16384.00 MB
+    Delta Memory :                               14714.00 MB
+    Max Swap :                                   -
+    Max Processes :                              4
+    Max Threads :                                16
+    Run time :                                   1613 sec.
+    Turnaround time :                            1574 sec.
+
+The output (if any) is above this job summary.
+
+
+
+PS:
+
+Read file <job_scripts/error.28037453.err> for stderr output of this job.
+

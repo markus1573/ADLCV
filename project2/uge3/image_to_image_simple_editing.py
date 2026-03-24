@@ -72,6 +72,10 @@ def img2img_edit(input_image, edit_prompt,
     #
     # noisy_l = ...
     # ─────────────────────────────────────────────────────────────────────────
+    noise = torch.randn_like(l)
+    timestep = pipe.scheduler.timesteps[start_step]
+    noisy_l = pipe.scheduler.add_noise(l, noise, timestep)
+
 
     # Denoise from start_step onward with the edit prompt
     output = sample(
