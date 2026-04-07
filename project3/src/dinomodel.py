@@ -34,6 +34,7 @@ def parse_args():
     parser.add_argument("--max-workers", type=int, default=DEFAULT_MAX_WORKERS)
     return parser.parse_args()
 
+<<<<<<< HEAD
 # ----------------------------
 # Helper: Linear Head Training
 # ----------------------------
@@ -62,6 +63,11 @@ def train_linear_head(model_name, dataset, device):
     head = nn.Linear(1024, 50).to(X.device)
     opt = torch.optim.AdamW(head.parameters(), lr=1e-3)
     crit = nn.CrossEntropyLoss()
+=======
+# 2. Load Dataset (Using a subset for speed)
+dataset = load_dataset("Elriggs/imagenet-50-subset", split="validation", cache_dir="./.data", trust_remote_code=True)
+dataset = dataset.select(range(min(500, len(dataset)))) # 500 samples is plenty for a linear head
+>>>>>>> 1cd2ab4bfbbcc965dff6408009483a88189e5aff
 
     for _ in range(50):
         loss = crit(head(X), Y)
