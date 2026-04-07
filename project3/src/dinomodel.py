@@ -14,7 +14,7 @@ ROTATION = 180
 pipe = pipeline("image-feature-extraction", model=MODEL_NAME, device=DEVICE, torch_dtype=torch.float16)
 
 # 2. Load Dataset (Using a subset for speed)
-dataset = load_dataset("Elriggs/imagenet-50-subset", split="validation", trust_remote_code=True)
+dataset = load_dataset("Elriggs/imagenet-50-subset", split="validation", cache_dir="./.data", trust_remote_code=True)
 dataset = dataset.select(range(min(500, len(dataset)))) # 500 samples is plenty for a linear head
 
 # 3. Extract Features (CLS Token)
