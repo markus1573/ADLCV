@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import argparse
 from itertools import product
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from transformers import pipeline
 from datasets import load_dataset
 from torch.utils.data import DataLoader
@@ -161,7 +161,7 @@ def main():
             model_name, rotation, scale, acc = run_combo(combo)
             print(f"{model_name}\t{rotation}\t{scale}\t{acc:.4f}")
     else:
-        with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
+        with ProcessPoolExecutor(max_workers=args.max_workers) as executor:
             futures = [executor.submit(run_combo, combo) for combo in combos]
             for future in as_completed(futures):
                 model_name, rotation, scale, acc = future.result()
