@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 # ----------------------------
 # Config
 # ----------------------------
-MODEL_NAME = "facebook/dinov2-small-imagenet1k-1-layer"
+MODEL_NAME = "facebook/dinov3-vitl16-pretrain-lvd1689m"
 N = 1000                 # how many samples to evaluate
 BATCH_SIZE = 32          # tune this based on your GPU memory
 NUM_WORKERS = 4          # tune based on CPU
