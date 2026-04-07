@@ -1,66 +1,134 @@
 import torch
 import torch.nn as nn
+import numpy as np
+import argparse
+from itertools import product
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from transformers import pipeline
 from datasets import load_dataset
+from torch.utils.data import DataLoader
 from tqdm import tqdm
-import numpy as np
 
-# 1. Setup
-DEVICE = 0 if torch.cuda.is_available() else -1
-MODEL_NAME = "facebook/dinov3-vitl16-pretrain-lvd1689m"
-ROTATION = 180
+# ----------------------------
+# Config
+# ----------------------------
+# Note: Using DINOv3 as the default
+DEFAULT_MODEL_NAME = "facebook/dinov3-vitl16-pretrain-lvd1689m"
+DEFAULT_N = 1000
+DEFAULT_BATCH_SIZE = 32
+DEFAULT_NUM_WORKERS = 4
+DEFAULT_DEVICE = 0 if torch.cuda.is_available() else -1
+DEFAULT_ROTATIONS = [0, 180] 
+DEFAULT_SCALES = [1.0]
+DEFAULT_MAX_WORKERS = 1
 
-# Use feature-extraction instead of classification
-pipe = pipeline("image-feature-extraction", model=MODEL_NAME, device=DEVICE, torch_dtype=torch.float16)
+def parse_args():
+    parser = argparse.ArgumentParser(description="Evaluate DINOv3 accuracy across rotations and scales.")
+    parser.add_argument("--model-names", nargs="+", default=[DEFAULT_MODEL_NAME])
+    parser.add_argument("--rotations", nargs="+", type=int, default=DEFAULT_ROTATIONS)
+    parser.add_argument("--scales", nargs="+", type=float, default=DEFAULT_SCALES)
+    parser.add_argument("--n", type=int, default=DEFAULT_N)
+    parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
+    parser.add_argument("--num-workers", type=int, default=DEFAULT_NUM_WORKERS)
+    parser.add_argument("--device", type=int, default=DEFAULT_DEVICE)
+    parser.add_argument("--max-workers", type=int, default=DEFAULT_MAX_WORKERS)
+    return parser.parse_args()
 
-# 2. Load Dataset (Using a subset for speed)
-dataset = load_dataset("Elriggs/imagenet-50-subset", split="validation", trust_remote_code=True)
-dataset = dataset.select(range(min(500, len(dataset)))) # 500 samples is plenty for a linear head
+# ----------------------------
+# Helper: Linear Head Training
+# ----------------------------
+def train_linear_head(model_name, dataset, device):
+    """
+    DINOv3 is just a backbone. We need to train a 1-layer head 
+    on 'upright' images first so we have an accuracy metric to test.
+    """
+    print(f"--- Calibrating Linear Head for {model_name} ---")
+    pipe = pipeline("image-feature-extraction", model=model_name, device=device, torch_dtype=torch.float16)
+    
+    feats, labels = [], []
+    # Use a subset of the data to 'teach' the labels
+    for i in range(min(len(dataset), 500)): 
+        item = dataset[i]
+        img = item["image"].convert("RGB")
+        with torch.no_grad():
+            out = pipe(img)
+            feats.append(torch.tensor(out[0][0])) # CLS token
+            labels.append(item["label"])
+    
+    X = torch.stack(feats).to("cuda" if device >= 0 else "cpu")
+    Y = torch.tensor(labels).to(X.device)
+    
+    # 1024 is the embedding dim for ViT-L/16
+    head = nn.Linear(1024, 50).to(X.device)
+    opt = torch.optim.AdamW(head.parameters(), lr=1e-3)
+    crit = nn.CrossEntropyLoss()
 
-# 3. Extract Features (CLS Token)
-print("Extracting Features...")
-embeddings = []
-labels = []
+    for _ in range(50):
+        loss = crit(head(X), Y)
+        opt.zero_grad()
+        loss.backward()
+        opt.step()
+    
+    return head.eval()
 
-for item in tqdm(dataset):
-    img = item["image"].convert("RGB")
-    with torch.no_grad():
-        # DINOv3 output: [1, Seq_Len, 1024]. Index 0 is the CLS token.
-        feat = pipe(img)
-        embeddings.append(torch.tensor(feat[0][0]))
-        labels.append(item["label"])
+# ----------------------------
+# Core Logic
+# ----------------------------
+def make_collate_fn(rotation, scale):
+    def collate_fn(batch):
+        # Apply transformations
+        images = [x["image"].convert("RGB").rotate(rotation) for x in batch]
+        if scale != 1.0:
+            images = [img.resize((max(1, int(img.width * scale)), max(1, int(img.height * scale)))) for img in images]
+        labels = [x["label"] for x in batch] # Using integer labels for accuracy
+        return images, labels
+    return collate_fn
 
-X = torch.stack(embeddings).to("cuda" if DEVICE >= 0 else "cpu")
-Y = torch.tensor(labels).to("cuda" if DEVICE >= 0 else "cpu")
+def evaluate_accuracy(model_name, dataset, rotation, scale, batch_size, num_workers, device, trained_head):
+    # Use feature-extraction since DINOv3 doesn't have a native class head
+    pipe = pipeline("image-feature-extraction", model=model_name, device=device, torch_dtype=torch.float16)
 
-# 4. Train a Linear Head (Quick "Linear Probe")
-# This simulates the model's performance on your specific 50 classes
-head = nn.Linear(1024, 50).to(X.device)
-optimizer = torch.optim.AdamW(head.parameters(), lr=1e-3)
-criterion = nn.CrossEntropyLoss()
+    loader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        collate_fn=make_collate_fn(rotation, scale),
+    )
 
-print("Training Linear Head...")
-for epoch in range(50): # Linear heads converge very fast
-    outputs = head(X)
-    loss = criterion(outputs, Y)
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
+    correct, total = 0, 0
+    with torch.inference_mode():
+        for images, labels in loader:
+            # 1. Get DINOv3 Features
+            outputs = pipe(images, batch_size=len(images))
+            # 2. Extract CLS tokens [Batch, 1024]
+            cls_tokens = torch.stack([torch.tensor(out[0][0]) for out in outputs]).to("cuda" if device >= 0 else "cpu")
+            # 3. Pass through our calibrated head
+            logits = trained_head(cls_tokens)
+            preds = torch.argmax(logits, dim=1)
+            
+            targets = torch.tensor(labels).to(preds.device)
+            correct += (preds == targets).sum().item()
+            total += len(labels)
 
-# 5. Evaluate Accuracy on Rotated Images
-print(f"Evaluating Accuracy at {ROTATION}°...")
-correct_rot = 0
-total = 0
+    return correct / total
 
-for item in tqdm(dataset):
-    img_rot = item["image"].convert("RGB").rotate(ROTATION)
-    with torch.no_grad():
-        feat_rot = torch.tensor(pipe(img_rot)[0][0]).to(X.device)
-        logits = head(feat_rot)
-        pred = torch.argmax(logits).item()
-        if pred == item["label"]:
-            correct_rot += 1
-        total += 1
+def main():
+    args = parse_args()
+    dataset = load_dataset("Elriggs/imagenet-50-subset", split="validation", trust_remote_code=True)
+    dataset = dataset.select(range(min(args.n, len(dataset))))
 
-print(f"\nStandard Accuracy (0°): 100% (Overfit check on training subset)")
-print(f"Rotated Accuracy ({ROTATION}°): { (correct_rot/total)*100 :.2f}%")
+    # Map model names to their respective trained heads
+    model_heads = {}
+    for m_name in args.model_names:
+        model_heads[m_name] = train_linear_head(m_name, dataset, args.device)
+
+    combos = list(product(args.model_names, args.rotations, args.scales))
+    print("\nmodel_name\trotation\tscale\taccuracy")
+
+    for m_name, rot, scale in combos:
+        acc = evaluate_accuracy(m_name, dataset, rot, scale, args.batch_size, args.num_workers, args.device, model_heads[m_name])
+        print(f"{m_name}\t{rot}\t{scale}\t{acc:.4f}")
+
+if __name__ == "__main__":
+    main()
