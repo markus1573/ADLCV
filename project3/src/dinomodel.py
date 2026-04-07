@@ -13,6 +13,37 @@ ROTATION = 180
 # Use feature-extraction instead of classification
 pipe = pipeline("image-feature-extraction", model=MODEL_NAME, device=DEVICE, torch_dtype=torch.float16)
 
+<<<<<<< HEAD
+=======
+# ----------------------------
+# Helper: Linear Head Training
+# ----------------------------
+def train_linear_head(model_name, dataset, device):
+    """
+    DINOv3 is just a backbone. We need to train a 1-layer head 
+    on 'upright' images first so we have an accuracy metric to test.
+    """
+    print(f"--- Calibrating Linear Head for {model_name} ---")
+    pipe = pipeline("image-feature-extraction", model=model_name, device=device, torch_dtype=torch.float16)
+    
+    feats, labels = [], []
+    # Use a subset of the data to 'teach' the labels
+    for i in range(min(len(dataset), 500)): 
+        item = dataset[i]
+        img = item["image"].convert("RGB")
+        with torch.no_grad():
+            out = pipe(img)
+            feats.append(torch.tensor(out[0][0])) # CLS token
+            labels.append(item["label"])
+    
+    X = torch.stack(feats).to("cuda" if device >= 0 else "cpu")
+    Y = torch.tensor(labels).to(X.device)
+    
+    # 1024 is the embedding dim for ViT-L/16
+    head = nn.Linear(1024, 50).to(X.device)
+    opt = torch.optim.AdamW(head.parameters(), lr=1e-3)
+    crit = nn.CrossEntropyLoss()
+>>>>>>> 0a9ebf7389ee4811eacda5b80db5e73a8fae29c2
 # 2. Load Dataset (Using a subset for speed)
 dataset = load_dataset("Elriggs/imagenet-50-subset", split="validation", cache_dir="./.data", trust_remote_code=True)
 dataset = dataset.select(range(min(500, len(dataset)))) # 500 samples is plenty for a linear head
