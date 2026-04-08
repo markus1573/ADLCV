@@ -22,4 +22,4 @@ python3 test_imagenet.py \
     --model-names facebook/dinov2-small-imagenet1k-1-layer google/vit-base-patch16-224 google/siglip-so400m-patch14-384\
     --rotations 0 60 120 \
     --scales 0.5 1.0 2.0 \
-    --max_workers 16
+    --max-workers 16

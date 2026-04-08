@@ -2,21 +2,9 @@ import torch
 import numpy as np
 import argparse
 from itertools import product
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from transformers import pipeline
 from datasets import load_dataset
 from torch.utils.data import DataLoader
-import os
-
-
-# multiprocessing fix for macOS.
-if os.uname().sysname == "Darwin":
-    import multiprocessing
-    if hasattr(multiprocessing, "set_start_method"):
-        try:
-            multiprocessing.set_start_method("fork", force=True)
-        except RuntimeError:
-            pass
 
 # ----------------------------
 # Config
@@ -182,11 +170,10 @@ def main():
             model_name, rotation, scale, acc = run_combo(combo)
             print(f"{model_name}\t{rotation}\t{scale}\t{acc:.4f}")
     else:
-        with ProcessPoolExecutor(max_workers=args.max_workers) as executor:
-            futures = [executor.submit(run_combo, combo) for combo in combos]
-            for future in as_completed(futures):
-                model_name, rotation, scale, acc = future.result()
-                print(f"{model_name}\t{rotation}\t{scale}\t{acc:.4f}")
+        for combo in combos:
+            future = run_combo(combo) 
+            model_name, rotation, scale, acc = future
+            print(f"{model_name}\t{rotation}\t{scale}\t{acc:.4f}")
 
 
 if __name__ == "__main__":
