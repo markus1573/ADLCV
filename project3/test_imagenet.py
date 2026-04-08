@@ -6,6 +6,17 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from transformers import pipeline
 from datasets import load_dataset
 from torch.utils.data import DataLoader
+import os
+
+
+# multiprocessing fix for macOS.
+if os.uname().sysname == "Darwin":
+    import multiprocessing
+    if hasattr(multiprocessing, "set_start_method"):
+        try:
+            multiprocessing.set_start_method("fork", force=True)
+        except RuntimeError:
+            pass
 
 # ----------------------------
 # Config
