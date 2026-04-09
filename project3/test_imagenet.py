@@ -2,7 +2,6 @@ import torch
 import numpy as np
 import argparse
 from itertools import product
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from transformers import pipeline
 from datasets import load_dataset
 from torch.utils.data import DataLoader
@@ -98,18 +97,28 @@ def make_collate_fn(rotation, scale):
 def evaluate_accuracy(
     model_name, dataset, rotation, scale, batch_size, num_workers, device
 ):
+    if "siglip" in model_name:
+        task = "zero-shot-image-classification"
+        labels = dataset.features["label"].names
+        pipe_func = lambda images: pipe(images, batch_size=len(images), candidate_labels=labels)
+    else:
+        task = "image-classification"
+        labels = None
+        pipe_func = lambda images: pipe(images, batch_size=len(images))
+
     pipe = pipeline(
-        task="image-classification",
+        task=task,
         model=model_name,
         dtype=torch.float16 if device >= 0 else torch.float32,
         device=device,
-        use_fast=False,
+        use_fast=True,
+        batch_size=batch_size,
     )
 
     loader = DataLoader(
         dataset,
         batch_size=batch_size,
-        shuffle=False,
+        shuffle=True,
         num_workers=num_workers,
         pin_memory=(device >= 0),
         collate_fn=make_collate_fn(rotation, scale),
@@ -120,7 +129,7 @@ def evaluate_accuracy(
 
     with torch.inference_mode():
         for images, labels in loader:
-            outputs = pipe(images, batch_size=len(images))
+            outputs = pipe_func(images)
             pred_labels = [out[0]["label"] for out in outputs]
 
             correct += sum(
@@ -161,11 +170,10 @@ def main():
             model_name, rotation, scale, acc = run_combo(combo)
             print(f"{model_name}\t{rotation}\t{scale}\t{acc:.4f}")
     else:
-        with ProcessPoolExecutor(max_workers=args.max_workers) as executor:
-            futures = [executor.submit(run_combo, combo) for combo in combos]
-            for future in as_completed(futures):
-                model_name, rotation, scale, acc = future.result()
-                print(f"{model_name}\t{rotation}\t{scale}\t{acc:.4f}")
+        for combo in combos:
+            future = run_combo(combo) 
+            model_name, rotation, scale, acc = future
+            print(f"{model_name}\t{rotation}\t{scale}\t{acc:.4f}")
 
 
 if __name__ == "__main__":
