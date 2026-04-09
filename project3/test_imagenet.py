@@ -5,6 +5,12 @@ from itertools import product
 from transformers import pipeline
 from datasets import load_dataset
 from torch.utils.data import DataLoader
+import sys
+from pathlib import Path
+
+# Add src to path to import dinomodel
+sys.path.insert(0, str(Path(__file__).parent / "src"))
+from dinomodel import load_or_train_head, predict_with_head
 
 # ----------------------------
 # Config
@@ -94,9 +100,55 @@ def make_collate_fn(rotation, scale):
     return collate_fn
 
 
+def is_dinov3_model(model_name):
+    """Check if model is a DINOv3 model that requires a linear head."""
+    return "dinov3" in model_name.lower()
+
+
+def evaluate_accuracy_dinov3(
+    model_name, dataset, rotation, scale, batch_size, num_workers, device
+):
+    """Evaluate accuracy for DINOv3 models using feature extraction + linear head."""
+    # Load or train the head
+    head, pipe = load_or_train_head(model_name, device)
+    
+    loader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=(device >= 0),
+        collate_fn=make_collate_fn(rotation, scale),
+    )
+
+    correct = 0
+    total = 0
+
+    with torch.inference_mode():
+        for images, labels in loader:
+            # Get feature predictions
+            pred_indices = predict_with_head(images, head, pipe, device, batch_size)
+            
+            # Get class names from dataset
+            class_names = dataset.features["label"].names
+            pred_labels = [class_names[idx] for idx in pred_indices]
+
+            correct += sum(pred == true for pred, true in zip(pred_labels, labels))
+            total += len(labels)
+
+    return correct / total if total > 0 else np.nan
+
+
 def evaluate_accuracy(
     model_name, dataset, rotation, scale, batch_size, num_workers, device
 ):
+    """Evaluate accuracy for model. Routes to DINOv3 handler if needed."""
+    if is_dinov3_model(model_name):
+        return evaluate_accuracy_dinov3(
+            model_name, dataset, rotation, scale, batch_size, num_workers, device
+        )
+    
+    # Standard pipeline-based models
     if "siglip" in model_name:
         task = "zero-shot-image-classification"
         labels = dataset.features["label"].names
