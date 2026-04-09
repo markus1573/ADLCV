@@ -62,17 +62,14 @@ def train_linear_head(model_name, dataset, device):
     head = nn.Linear(1024, 50).to(X.device)
     opt = torch.optim.AdamW(head.parameters(), lr=1e-3)
     crit = nn.CrossEntropyLoss()
-# 2. Load Dataset (Using a subset for speed)
-dataset = load_dataset("Elriggs/imagenet-50-subset", split="validation", cache_dir="./.data", trust_remote_code=True)
-dataset = dataset.select(range(min(500, len(dataset)))) # 500 samples is plenty for a linear head
-
-    for _ in range(50):
-        loss = crit(head(X), Y)
+    head.train()
+    for epoch in range(10):
         opt.zero_grad()
+        logits = head(X)
+        loss = crit(logits, Y)
         loss.backward()
         opt.step()
-    
-    return head.eval()
+    return head.eval()  # Return the trained head in eval mode
 
 # ----------------------------
 # Core Logic
