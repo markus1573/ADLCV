@@ -3,6 +3,12 @@ import numpy as np
 from transformers import pipeline
 from typing import List, Dict
 from PIL import Image
+from datasets import load_dataset
+from torch.utils.data import DataLoader
+import argparse
+from tqdm import tqdm
+
+import metrics
 
 def get_target_layers(model_name: str, model: torch.nn.Module) -> List[torch.nn.Module]:
     """
@@ -47,7 +53,7 @@ class FeatureExtractor:
             task,
             model=model_name,
             device=pipe_device,
-            torch_dtype=torch.float16 if device.type != "cpu" else torch.float32,
+            dtype=torch.float16 if device.type != "cpu" else torch.float32,
             use_fast=True  # As in test_imagenet.py
         )
         self.model = self.pipe.model
@@ -65,22 +71,20 @@ class FeatureExtractor:
     def _hook_fn(self, module, input, output):
         # depending on the model, output might be a tuple. The hidden states are always the first element.
         hidden_state = output[0] if isinstance(output, tuple) else output
-        self.features.append(hidden_state.detach().cpu())
+        # Global Average Pool over the spatial/sequence dimension to get a [Batch, Dim] representation
+        pooled_state = hidden_state.mean(dim=1).detach().cpu()
+        self.features.append(pooled_state)
 
-    def extract(self, image: np.ndarray) -> List[torch.Tensor]:
+    def extract(self, images: List[Image.Image]) -> List[torch.Tensor]:
         self.features.clear() # Reset storage
-        
-        # Pipelines prefer PIL images
-        if isinstance(image, np.ndarray):
-            image = Image.fromarray(image)
         
         # Run through the pipeline directly without accessing vision_model
         with torch.inference_mode():
             if self.pipe.task == "zero-shot-image-classification":
                 # Requires candidate labels for passing through the text encoder
-                self.pipe(image, candidate_labels=["dummy reference"])
+                self.pipe(images, candidate_labels=["dummy reference"], batch_size=len(images))
             else:
-                self.pipe(image)
+                self.pipe(images, batch_size=len(images))
                 
         return self.features.copy()
 
@@ -89,7 +93,19 @@ class FeatureExtractor:
         for handle in self.hook_handles:
             handle.remove()
 
+def make_collate_fn(rotation: int):
+    def collate_fn(batch):
+        # We apply the target rotation and ensure they are all in RGB format as PIL Images
+        images = [x["image"].convert("RGB").rotate(rotation) for x in batch]
+        return images
+    return collate_fn
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--n", type=int, default=100, help="Number of images to process.")
+    parser.add_argument("--batch-size", type=int, default=32, help="Batch size for pipeline.")
+    args = parser.parse_args()
+
     device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
     
     models = [
@@ -98,16 +114,104 @@ if __name__ == "__main__":
         "google/siglip-so400m-patch14-384"
     ]
     
-    dummy_image = np.random.randint(0, 255, (384, 384, 3), dtype=np.uint8)
+    angles = [0, 90, 180, 270]
+
+    # Load dataset
+    dataset = load_dataset(
+        "Elriggs/imagenet-50-subset", cache_dir="./.data", split="validation", trust_remote_code=True
+    )
+    dataset = dataset.select(range(min(args.n, len(dataset))))
+
+    print("--- Running Feature-Level Analysis ---")
+
+    results = {}
 
     for m in models:
         extractor = FeatureExtractor(m, device)
-        extracted_layers = extractor.extract(dummy_image)
-        
-        print(f"\n{m} Extraction Results:")
-        print(f"Number of layers intercepted: {len(extracted_layers)}")
-        for i, feat in enumerate(extracted_layers):
-            print(f" Layer {i} feature shape: {feat.shape}")
+        results[m] = {}
+
+        for angle in angles:
+            print(f"\nProcessing angle: {angle}°")
+            loader = DataLoader(
+                dataset,
+                batch_size=args.batch_size,
+                shuffle=False,
+                collate_fn=make_collate_fn(angle),
+            )
+            
+            # Since pipeline can yield chunked callbacks naturally, we collect accumulated hooked features.
+            all_batches_features = {i: [] for i in range(5)}
+            
+            for batch_images in tqdm(loader, desc=f"Evaluating {m} @ {angle}°"):
+                extracted_layers = extractor.extract(batch_images)
+                
+                for layer_idx, feats in enumerate(extracted_layers):
+                    all_batches_features[layer_idx].append(feats)
+            
+            # Concatenate collected batches across the whole dataset (N=samples, D=hidden_dim)
+            results[m][angle] = [
+                torch.cat(all_batches_features[i], dim=0) for i in range(5)
+            ]
         
         extractor.cleanup()
         print("-" * 50)
+        
+    print("\nExtraction complete! Data arrays ready for similarity evaluation.")
+
+    import matplotlib.pyplot as plt
+    import os
+    
+    out_dir = "results"
+    os.makedirs(out_dir, exist_ok=True)
+    
+    # eval_results[metric][model][angle] = list of layer scores
+    eval_results = {
+        "CKA": {m: {a: [] for a in angles[1:]} for m in models},
+        "Cosine": {m: {a: [] for a in angles[1:]} for m in models},
+        "RSA": {m: {a: [] for a in angles[1:]} for m in models}
+    }
+    
+    print("Computing metrics...")
+    for m in models:
+        for angle in angles[1:]:
+            for layer_idx in range(5):
+                # Bring back to device for metric computation
+                baseline_feats = results[m][0][layer_idx].to(device)
+                trans_feats = results[m][angle][layer_idx].to(device)
+                
+                # CKA
+                cka_score = metrics.linear_cka(baseline_feats, trans_feats).item()
+                # Cosine (mean over batch)
+                cos_score = metrics.centered_cosine_similarity(baseline_feats, trans_feats).mean().item()
+                # RSA
+                rsa_score = metrics.rsa(baseline_feats, trans_feats).item()
+                
+                eval_results["CKA"][m][angle].append(cka_score)
+                eval_results["Cosine"][m][angle].append(cos_score)
+                eval_results["RSA"][m][angle].append(rsa_score)
+                
+    # Plotting
+    print("Generating plots...")
+    layer_ticks = ["First", "Early-Mid", "Mid", "Late-Mid", "Last"]
+    
+    for metric_name, model_data in eval_results.items():
+        plt.figure(figsize=(15, 5))
+        for i, m_name in enumerate(models):
+            plt.subplot(1, 3, i+1)
+            plt.title(m_name.split('/')[-1])
+            for angle in angles[1:]:
+                plt.plot(layer_ticks, model_data[m_name][angle], marker='o', label=f"{angle}°")
+            plt.xlabel("Layers")
+            plt.ylabel(f"{metric_name} Similarity")
+            plt.ylim(-0.1, 1.1)
+            plt.grid(True)
+            if i == 2:
+                plt.legend()
+                
+        plt.tight_layout()
+        plt_path = os.path.join(out_dir, f"{metric_name.lower()}_similarity.png")
+        plt.savefig(plt_path)
+        plt.close()
+        print(f"Saved {plt_path}")
+        
+    print("Done!")
