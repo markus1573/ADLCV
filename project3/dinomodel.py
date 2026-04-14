@@ -22,9 +22,9 @@ def get_head_path(model_name):
     return HEADS_DIR / f"{safe_name}_head.pth"
 
 
-def train_linear_head(model_name=MODEL_NAME, device=DEVICE, num_samples=500):
+def train_linear_head(model_name=MODEL_NAME, device=DEVICE, num_samples=2000):
     """
-    Train a linear head on DINOv3 features for 50-class classification.
+    Train a linear head on DINO features for 50-class classification.
     Returns the trained head and the feature extraction pipeline.
     """
     print(f"--- Training Linear Head for {model_name} ---")
@@ -38,7 +38,7 @@ def train_linear_head(model_name=MODEL_NAME, device=DEVICE, num_samples=500):
     )
     dataset = load_dataset(
         "Elriggs/imagenet-50-subset",
-        split="validation",
+        split="train",
         cache_dir="./.data",
         trust_remote_code=True,
     )
@@ -57,26 +57,34 @@ def train_linear_head(model_name=MODEL_NAME, device=DEVICE, num_samples=500):
             labels.append(item["label"])
     
     X = torch.stack(embeddings).to("cuda" if device >= 0 else "cpu")
-    Y = torch.tensor(labels).to(X.device)
+    
+    # Map original labels to 0-49 just in case
+    unique_labels = sorted(list(set(labels)))
+    label_map = {orig: i for i, orig in enumerate(unique_labels)}
+    mapped_labels = [label_map[l] for l in labels]
+    
+    Y = torch.tensor(mapped_labels).to(X.device)
     
     # Train linear head
     print("Training Linear Head...")
-    head = nn.Linear(FEATURE_DIM, NUM_CLASSES).to(X.device)
+    head = nn.Linear(FEATURE_DIM, len(unique_labels)).to(X.device)
     optimizer = torch.optim.AdamW(head.parameters(), lr=1e-3)
     criterion = nn.CrossEntropyLoss()
     
-    for _ in range(50):
+    for epoch in range(100):
         outputs = head(X)
         loss = criterion(outputs, Y)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        if (epoch + 1) % 10 == 0:
+            print(f"Epoch {epoch+1}/100, Loss: {loss.item():.4f}")
     
     print("Training Complete!")
     return head, pipe
 
 
-def load_or_train_head(model_name=MODEL_NAME, device=DEVICE, num_samples=500):
+def load_or_train_head(model_name=MODEL_NAME, device=DEVICE, num_samples=2000):
     """
     Load a trained head from disk, or train it if it doesn't exist.
     Returns the head and feature extraction pipeline.
