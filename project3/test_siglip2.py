@@ -16,6 +16,15 @@ dummy_image = np.random.randint(0, 255, (384, 384, 3), dtype=np.uint8)
 inputs = processor(images=dummy_image, return_tensors="pt").to(device)
 
 with torch.no_grad():
-    out = model.vision_model(**inputs, output_hidden_states=True)
+    # specifically pass pixel_values from the inputs dict
+    out = model.vision_model(
+        pixel_values=inputs["pixel_values"], 
+        output_hidden_states=True
+    )
 
 print("Vision Model output keys:", out.keys())
+if hasattr(out, 'hidden_states') and out.hidden_states is not None:
+    print(f"Number of hidden states: {len(out.hidden_states)}")
+    print(f"Hidden state shape: {out.hidden_states[0].shape}")
+else:
+    print("hidden_states is None or missing")
