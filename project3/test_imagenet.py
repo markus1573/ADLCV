@@ -139,6 +139,24 @@ def evaluate_accuracy_dinov3(
     return correct / total if total > 0 else np.nan
 
 
+class Pipelines:
+    pipes = {}
+
+    def get_pipe(self, model_name, task, device, batch_size):
+        if model_name not in self.pipes:
+            self.pipes[model_name] = pipeline(
+                task=task,
+                model=model_name,
+                dtype=torch.float16 if device >= 0 else torch.float32,
+                device=device,
+                use_fast=True,
+                batch_size=batch_size,
+            )
+        return self.pipes[model_name]
+    
+pipelines = Pipelines()
+    
+
 def evaluate_accuracy(
     model_name, dataset, rotation, scale, batch_size, num_workers, device
 ):
@@ -158,14 +176,7 @@ def evaluate_accuracy(
         labels = None
         pipe_func = lambda images: pipe(images, batch_size=len(images))
 
-    pipe = pipeline(
-        task=task,
-        model=model_name,
-        dtype=torch.float16 if device >= 0 else torch.float32,
-        device=device,
-        use_fast=True,
-        batch_size=batch_size,
-    )
+    pipe = pipelines.get_pipe(model_name, task, device, batch_size)
 
     loader = DataLoader(
         dataset,
