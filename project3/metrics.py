@@ -24,7 +24,7 @@ def center_gram_matrix(gram_matrix):
     K_centered = H K H
     """
     n = gram_matrix.size(0)
-    H = torch.eye(n, device=gram_matrix.device) - torch.ones((n, n), device=gram_matrix.device) / n
+    H = torch.eye(n, device=gram_matrix.device, dtype=gram_matrix.dtype) - torch.ones((n, n), device=gram_matrix.device, dtype=gram_matrix.dtype) / n
     return torch.matmul(torch.matmul(H, gram_matrix), H)
 
 def linear_cka(x, y):
