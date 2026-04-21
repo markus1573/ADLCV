@@ -18,8 +18,8 @@
 
 # cd /work3/s224225/ADLCV/project3/
 
-python3 test_imagenet.py \
+python3 test_tta.py \
     --model-names facebook/dinov2-small-imagenet1k-1-layer google/vit-base-patch16-224\
-    --rotations {0..360..10} \
-    --scales 0.5 1.0 2.0 \
-    --max-workers 16
+    --rotations 73 \
+    --max-workers 16 \
+    --tta-steps 5
