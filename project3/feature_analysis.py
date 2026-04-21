@@ -84,7 +84,7 @@ class FeatureExtractor:
                 # Requires candidate labels for passing through the text encoder
                 self.pipe(images, candidate_labels=["dummy reference"], batch_size=len(images))
             else:
-                self.pipe(images, batch_size=len(images))
+                self.pipe(images, batch_size=len(images)) # type: ignore
                 
         return self.features.copy()
 
@@ -133,7 +133,7 @@ if __name__ == "__main__":
         for angle in angles:
             print(f"\nProcessing angle: {angle}°")
             loader = DataLoader(
-                dataset,
+                dataset, # type: ignore
                 batch_size=args.batch_size,
                 shuffle=False,
                 collate_fn=make_collate_fn(angle),

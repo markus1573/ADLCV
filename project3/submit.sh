@@ -11,12 +11,12 @@
 #BSUB -B
 #BSUB -N
 
-module load python3/3.12.4
-module load cuda/12.8.0
+# module load python3/3.12.4
+# module load cuda/12.8.0
 
-source /work3/s214643/venvs/02501_project/bin/activate
+source ~/miniconda3/bin/activate computer_vison
 
-cd ~/work3/s214643/ADLCV/project3/
+cd ~/work3/s224225/ADLCV/project3/
 
 python3 test_imagenet.py \
     --model-names facebook/dinov2-small-imagenet1k-1-layer google/vit-base-patch16-224 google/siglip-so400m-patch14-384\
