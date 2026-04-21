@@ -20,6 +20,7 @@ DEFAULT_DEVICE = 0 if torch.cuda.is_available() else -1
 DEFAULT_ROTATIONS = [180]  # 0-360
 DEFAULT_SCALES = [1.0]  # 0.5-2.0
 DEFAULT_MAX_WORKERS = 1
+DEFAULT_TTA_STEPS = 4
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate image classification accuracy with TTA across rotations, scales, and model names.")
@@ -31,7 +32,7 @@ def parse_args():
     parser.add_argument("--num-workers", type=int, default=DEFAULT_NUM_WORKERS, help="Number of DataLoader workers.")
     parser.add_argument("--device", type=int, default=DEFAULT_DEVICE, help="Device for pipeline (-1 for CPU, >=0 for CUDA device index).")
     parser.add_argument("--max-workers", type=int, default=DEFAULT_MAX_WORKERS, help="Number of concurrent combo evaluations.")
-    parser.add_argument("--tta-steps", type=int, default=4, help="Number of TTA rotations")
+    parser.add_argument("--tta-steps", type=int, default=DEFAULT_TTA_STEPS, help="Number of TTA rotations")
     return parser.parse_args()
 
 def make_collate_fn(rotation, scale):
