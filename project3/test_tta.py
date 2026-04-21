@@ -13,22 +13,24 @@ from pathlib import Path
 # Config
 # ----------------------------
 DEFAULT_MODEL_NAME = "facebook/dinov2-small-imagenet1k-1-layer"
-DEFAULT_N = 1000
-DEFAULT_BATCH_SIZE = 32
-DEFAULT_NUM_WORKERS = 4
+DEFAULT_N = 1000  # how many samples to evaluate
+DEFAULT_BATCH_SIZE = 32  # tune this based on your GPU memory
+DEFAULT_NUM_WORKERS = 4  # tune based on CPU
 DEFAULT_DEVICE = 0 if torch.cuda.is_available() else -1
-DEFAULT_ROTATIONS = [0]
-DEFAULT_SCALES = [1.0]
+DEFAULT_ROTATIONS = [180]  # 0-360
+DEFAULT_SCALES = [1.0]  # 0.5-2.0
+DEFAULT_MAX_WORKERS = 1
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Evaluate with TTA.")
-    parser.add_argument("--model-names", nargs="+", default=[DEFAULT_MODEL_NAME])
-    parser.add_argument("--rotations", nargs="+", type=int, default=DEFAULT_ROTATIONS)
-    parser.add_argument("--scales", nargs="+", type=float, default=DEFAULT_SCALES)
-    parser.add_argument("--n", type=int, default=DEFAULT_N)
-    parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
-    parser.add_argument("--num-workers", type=int, default=DEFAULT_NUM_WORKERS)
-    parser.add_argument("--device", type=int, default=DEFAULT_DEVICE)
+    parser = argparse.ArgumentParser(description="Evaluate image classification accuracy with TTA across rotations, scales, and model names.")
+    parser.add_argument("--model-names", nargs="+", default=[DEFAULT_MODEL_NAME], help="One or more Hugging Face model names.")
+    parser.add_argument("--rotations", nargs="+", type=int, default=DEFAULT_ROTATIONS, help="One or more rotation angles in degrees.")
+    parser.add_argument("--scales", nargs="+", type=float, default=DEFAULT_SCALES, help="One or more image scale factors.")
+    parser.add_argument("--n", type=int, default=DEFAULT_N, help="How many validation samples to evaluate.")
+    parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help="Batch size for DataLoader and pipeline inference.")
+    parser.add_argument("--num-workers", type=int, default=DEFAULT_NUM_WORKERS, help="Number of DataLoader workers.")
+    parser.add_argument("--device", type=int, default=DEFAULT_DEVICE, help="Device for pipeline (-1 for CPU, >=0 for CUDA device index).")
+    parser.add_argument("--max-workers", type=int, default=DEFAULT_MAX_WORKERS, help="Number of concurrent combo evaluations.")
     parser.add_argument("--tta-steps", type=int, default=4, help="Number of TTA rotations")
     return parser.parse_args()
 
