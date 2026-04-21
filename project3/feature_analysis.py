@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from transformers import pipeline
+from transformers import pipeline, AutoImageProcessor
 from typing import List, Dict
 from PIL import Image
 from datasets import load_dataset
@@ -40,56 +40,60 @@ class FeatureExtractor:
         self.device = device
         print(f"Loading {model_name}...")
         
-        # Determine task type identical to test_imagenet.py
-        if "siglip" in model_name:
-            task = "zero-shot-image-classification"
-        else:
-            task = "image-classification"
-            
-        # pipeline needs device argument as integer index or 'cpu'/'mps' string directly
+        # Use image-feature-extraction to bypass the need for a tokenizer
+        task = "image-feature-extraction"
+        
         pipe_device = "mps" if device.type == "mps" else (device.index if device.type == "cuda" else "cpu")
         
+        # Load image processor explicitly
+        img_processor = AutoImageProcessor.from_pretrained(model_name)
+
         self.pipe = pipeline(
             task,
             model=model_name,
+            image_processor=img_processor,
             device=pipe_device,
-            dtype=torch.float16 if device.type != "cpu" else torch.float32,
-            use_fast=True  # As in test_imagenet.py
+            torch_dtype=torch.float16 if device.type != "cpu" else torch.float32,
         )
+        
+        # The underlying model is still accessible for hooking
         self.model = self.pipe.model
         self.model.eval()
 
-        # Storage for our intercepted features
         self.features = []
-        
-        # Attach hooks
         self.hook_handles = []
         target_layers = get_target_layers(model_name, self.model)
         for layer in target_layers:
             self.hook_handles.append(layer.register_forward_hook(self._hook_fn))
 
     def _hook_fn(self, module, input, output):
-        # depending on the model, output might be a tuple. The hidden states are always the first element.
+        # Hidden states are usually the first element in the output tuple
         hidden_state = output[0] if isinstance(output, tuple) else output
-        # Global Average Pool over the spatial/sequence dimension to get a [Batch, Dim] representation
+        # Pooled representation [Batch, Dim]
         pooled_state = hidden_state.mean(dim=1).detach().cpu()
         self.features.append(pooled_state)
 
     def extract(self, images: List[Image.Image]) -> List[torch.Tensor]:
-        self.features.clear() # Reset storage
-        
-        # Run through the pipeline directly without accessing vision_model
-        with torch.inference_mode():
-            if self.pipe.task == "zero-shot-image-classification":
-                # Requires candidate labels for passing through the text encoder
-                self.pipe(images, candidate_labels=["dummy reference"], batch_size=len(images))
-            else:
-                self.pipe(images, batch_size=len(images))
-                
-        return self.features.copy()
+            self.features.clear()
+            
+            # Preprocess images using the pipeline's image_processor
+            # We ensure they are moved to the correct device and dtype
+            inputs = self.pipe.image_processor(images, return_tensors="pt").to(
+                self.device, 
+                dtype=torch.float16 if self.device.type != "cpu" else torch.float32
+            )
+            
+            with torch.inference_mode():
+                if hasattr(self.model, "vision_model"):
+                    # For SigLIP/CLIP: call the vision tower directly
+                    self.model.vision_model(**inputs)
+                else:
+                    # For ViT/DINOv2: call the model directly
+                    self.model(**inputs)
+                    
+            return self.features.copy()
 
     def cleanup(self):
-        # Remove hooks when done to prevent memory leaks
         for handle in self.hook_handles:
             handle.remove()
 
