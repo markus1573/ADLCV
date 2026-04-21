@@ -40,9 +40,7 @@ def make_collate_fn(rotation, scale):
         images = [x["image"].rotate(rotation) for x in batch]
         images = [x.resize((max(1, int(x.width * scale)), max(1, int(x.height * scale)))) for x in images]
         labels = [x["class_name"] for x in batch]
-        # Include original images for TTA
-        orig_images = [x["image"] for x in batch]
-        return images, labels, orig_images
+        return images, labels
     return collate_fn
 
 class Pipelines:
@@ -79,7 +77,7 @@ def evaluate_accuracy(model_name, dataset, rotation, scale, batch_size, num_work
     start_time = time.time()
 
     with torch.inference_mode():
-        for images, labels, orig_images in loader:
+        for images, labels in loader:
             # Base Evaluation
             outputs_base = pipe_func(images)
             pred_labels_base = [out[0]["label"] for out in outputs_base]
@@ -89,7 +87,7 @@ def evaluate_accuracy(model_name, dataset, rotation, scale, batch_size, num_work
                 tta_angles = np.linspace(0, 360, tta_steps, endpoint=False)
                 tta_scores = []
                 for angle in tta_angles:
-                    tta_imgs = [img.rotate(rotation + angle).resize((max(1, int(img.width * scale)), max(1, int(img.height * scale)))) for img in orig_images]
+                    tta_imgs = [img.rotate(angle) for img in images]
                     out_tta = pipe_func(tta_imgs)
                     tta_scores.append(out_tta)
                 
