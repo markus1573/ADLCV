@@ -111,7 +111,7 @@ if __name__ == "__main__":
     models = [
         "facebook/dinov2-small-imagenet1k-1-layer",
         "google/vit-base-patch16-224",
-        "google/siglip-so400m-patch14-384"
+        # "google/siglip-so400m-patch14-384"
     ]
     
     angles = [0, 90, 180, 270]
@@ -175,9 +175,9 @@ if __name__ == "__main__":
     for m in models:
         for angle in angles[1:]:
             for layer_idx in range(5):
-                # Bring back to device for metric computation
-                baseline_feats = results[m][0][layer_idx].to(device)
-                trans_feats = results[m][angle][layer_idx].to(device)
+                # Bring back to device for metric computation (cast to float32 to prevent fp16 overflow NaNs)
+                baseline_feats = results[m][0][layer_idx].to(device, dtype=torch.float32)
+                trans_feats = results[m][angle][layer_idx].to(device, dtype=torch.float32)
                 
                 # CKA
                 cka_score = metrics.linear_cka(baseline_feats, trans_feats).item()
@@ -195,9 +195,9 @@ if __name__ == "__main__":
     layer_ticks = ["First", "Early-Mid", "Mid", "Late-Mid", "Last"]
     
     for metric_name, model_data in eval_results.items():
-        plt.figure(figsize=(15, 5))
+        plt.figure(figsize=(5 * len(models), 5))
         for i, m_name in enumerate(models):
-            plt.subplot(1, 3, i+1)
+            plt.subplot(1, len(models), i+1)
             plt.title(m_name.split('/')[-1])
             for angle in angles[1:]:
                 plt.plot(layer_ticks, model_data[m_name][angle], marker='o', label=f"{angle}°")
@@ -205,8 +205,8 @@ if __name__ == "__main__":
             plt.ylabel(f"{metric_name} Similarity")
             plt.ylim(-0.1, 1.1)
             plt.grid(True)
-            if i == 2:
-                plt.legend()
+            if i == len(models) - 1:
+                plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
                 
         plt.tight_layout()
         plt_path = os.path.join(out_dir, f"{metric_name.lower()}_similarity.png")
