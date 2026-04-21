@@ -228,15 +228,60 @@ def main():
         )
         return model_name, rotation, scale, acc
 
+    results_data = {}
+
     if args.max_workers <= 1:
         for combo in combos:
             model_name, rotation, scale, acc = run_combo(combo)
             print(f"{model_name}\t{rotation}\t{scale}\t{acc:.4f}")
+            if scale not in results_data:
+                results_data[scale] = {}
+            if model_name not in results_data[scale]:
+                results_data[scale][model_name] = []
+            results_data[scale][model_name].append((rotation, acc))
     else:
         for combo in combos:
             future = run_combo(combo) 
             model_name, rotation, scale, acc = future
             print(f"{model_name}\t{rotation}\t{scale}\t{acc:.4f}")
+            if scale not in results_data:
+                results_data[scale] = {}
+            if model_name not in results_data[scale]:
+                results_data[scale][model_name] = []
+            results_data[scale][model_name].append((rotation, acc))
+
+    import matplotlib.pyplot as plt
+    import os
+
+    out_dir = "results"
+    os.makedirs(out_dir, exist_ok=True)
+
+    print("\nGenerating evaluation plots...")
+    for scale, models_data in results_data.items():
+        plt.figure(figsize=(10, 6))
+        plt.title(f"Accuracy vs Rotation (Scale = {scale})")
+        plt.xlabel("Rotation (Degrees)")
+        plt.ylabel("Accuracy")
+        
+        for m_name, rot_acc_list in models_data.items():
+            # sort by rotation to make lines connect properly
+            rot_acc_list.sort(key=lambda x: x[0])
+            rots = [x[0] for x in rot_acc_list]
+            accs = [x[1] for x in rot_acc_list]
+            
+            short_name = m_name.split('/')[-1]
+            plt.plot(rots, accs, marker='o', label=short_name)
+            
+        plt.ylim(-0.05, 1.05)
+        plt.grid(True)
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.tight_layout()
+        
+        safe_scale = str(scale).replace(".", "_")
+        plt_path = os.path.join(out_dir, f"accuracy_vs_rotation_scale_{safe_scale}.png")
+        plt.savefig(plt_path)
+        plt.close()
+        print(f"Saved plot to {plt_path}")
 
 
 if __name__ == "__main__":
