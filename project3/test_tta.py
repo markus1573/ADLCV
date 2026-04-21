@@ -159,5 +159,6 @@ def main():
         m_name = model_name.split("/")[-1][:22] # truncate model name nicely for console
         print(f"{m_name:<22}\t{rotation}\t{scale}\t{base_acc:.4f}\t\t{tta_acc:.4f}\t\t{base_time:.4f}s\t\t{total_time:.4f}s\t\t{multiplier:.1f}x")
 
+    print("\n")
 if __name__ == "__main__":
     main()
