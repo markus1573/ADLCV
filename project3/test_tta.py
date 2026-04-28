@@ -106,17 +106,34 @@ def evaluate_accuracy(model_name, dataset, rotation, scale, batch_size, num_work
                     out_tta = pipe_func(tta_imgs)
                     tta_scores.append(out_tta)
                 
-                # Aggregate TTA scores per image using Max Confidence
+                # Aggregate TTA scores per image using Minimum Entropy
                 tta_pred_labels = []
                 for i in range(len(images)):
                     best_label = None
-                    best_score = -1
+                    min_entropy = float('inf')
+                    
                     for step_idx in range(tta_steps):
+                        entropy = 0.0
+                        top_label = None
+                        top_score = -1.0
+                        
+                        # Calculate entropy and find the top label for this specific rotation step
                         for item in tta_scores[step_idx][i]:
                             l, s = item["label"], item["score"]
-                            if s > best_score:
-                                best_score = s
-                                best_label = l
+                            # Add a tiny epsilon to avoid log(0)
+                            if s > 0:
+                                entropy -= s * np.log(s + 1e-12)
+                            
+                            # Keep track of the top prediction for this step
+                            if s > top_score:
+                                top_score = s
+                                top_label = l
+                        
+                        # We pick the highest-scoring label from whichever step had the lowest overall entropy/uncertainty
+                        if entropy < min_entropy:
+                            min_entropy = entropy
+                            best_label = top_label
+                            
                     tta_pred_labels.append(best_label)
                     
                 correct_tta += sum(p == t or t in p for p, t in zip(tta_pred_labels, labels))
