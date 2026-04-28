@@ -106,15 +106,17 @@ def evaluate_accuracy(model_name, dataset, rotation, scale, batch_size, num_work
                     out_tta = pipe_func(tta_imgs)
                     tta_scores.append(out_tta)
                 
-                # Aggregate TTA scores per image
+                # Aggregate TTA scores per image using Max Confidence
                 tta_pred_labels = []
                 for i in range(len(images)):
-                    label_scores = {}
+                    best_label = None
+                    best_score = -1
                     for step_idx in range(tta_steps):
                         for item in tta_scores[step_idx][i]:
                             l, s = item["label"], item["score"]
-                            label_scores[l] = label_scores.get(l, 0) + s
-                    best_label = max(label_scores, key=label_scores.get)
+                            if s > best_score:
+                                best_score = s
+                                best_label = l
                     tta_pred_labels.append(best_label)
                     
                 correct_tta += sum(p == t or t in p for p, t in zip(tta_pred_labels, labels))
