@@ -40,13 +40,16 @@ class FeatureExtractor:
         self.device = device
         print(f"Loading {model_name}...")
         
+        # --- NEW: Determine pooling strategy ---
+        # Standard ViTs and DINOv2 use a [CLS] token. SigLIP uses GAP.
+        self.use_cls_token = "siglip" not in model_name
+        
         # Determine task type identical to test_imagenet.py
         if "siglip" in model_name:
             task = "zero-shot-image-classification"
         else:
             task = "image-classification"
             
-        # pipeline needs device argument as integer index or 'cpu'/'mps' string directly
         pipe_device = "mps" if device.type == "mps" else (device.index if device.type == "cuda" else "cpu")
         
         self.pipe = pipeline(
@@ -54,25 +57,30 @@ class FeatureExtractor:
             model=model_name,
             device=pipe_device,
             dtype=torch.float16 if device.type != "cpu" else torch.float32,
-            use_fast=True  # As in test_imagenet.py
+            use_fast=True
         )
         self.model = self.pipe.model
         self.model.eval()
 
-        # Storage for our intercepted features
         self.features = []
-        
-        # Attach hooks
         self.hook_handles = []
+        
         target_layers = get_target_layers(model_name, self.model)
         for layer in target_layers:
             self.hook_handles.append(layer.register_forward_hook(self._hook_fn))
 
     def _hook_fn(self, module, input, output):
-        # depending on the model, output might be a tuple. The hidden states are always the first element.
+        # hidden_state shape: [Batch, Sequence_Length, Hidden_Dim]
         hidden_state = output[0] if isinstance(output, tuple) else output
-        # Global Average Pool over the spatial/sequence dimension to get a [Batch, Dim] representation
-        pooled_state = hidden_state.mean(dim=1).detach().cpu()
+        
+        # --- NEW: Route the pooling logic ---
+        if self.use_cls_token:
+            # Extract the [CLS] token (always index 0 in the sequence dimension)
+            pooled_state = hidden_state[:, 0, :].detach().cpu()
+        else:
+            # SigLIP: Global Average Pool over the sequence dimension
+            pooled_state = hidden_state.mean(dim=1).detach().cpu()
+            
         self.features.append(pooled_state)
 
     def extract(self, images: List[Image.Image]) -> List[torch.Tensor]:
