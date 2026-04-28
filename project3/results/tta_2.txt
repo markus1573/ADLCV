@@ -1,0 +1,25 @@
+Evaluating 1000 samples. TTA steps: 6
+model_name            	rot	scale	base_acc	tta_acc	base_t/img	total_t/img	multiplier
+---------------------------------------------------------------------------------------------------------
+dinov2-small-imagenet1	143	1.0	0.8090		0.8920		0.0057s		0.0385s		6.7x
+vit-base-patch16-224  	143	1.0	0.7000		0.8580		0.0060s		0.0423s		7.0x
+
+Evaluating 1000 samples. TTA steps: 5
+model_name            	rot	scale	base_acc	tta_acc	base_t/img	total_t/img	multiplier
+---------------------------------------------------------------------------------------------------------
+dinov2-small-imagenet1	73	1.0	0.8280		0.8850		0.0056s		0.0323s		5.7x
+vit-base-patch16-224  	73	1.0	0.7540		0.8600		0.0062s		0.0357s		5.7x
+
+Evaluating 1000 samples. TTA steps: 10
+model_name            	rot	scale	base_acc	tta_acc	base_t/img	total_t/img	multiplier
+---------------------------------------------------------------------------------------------------------
+dinov2-small-imagenet1	235	1.0	0.7800		0.8850		0.0057s		0.0635s		11.2x 
+vit-base-patch16-224  	235	1.0	0.6820		0.8520		0.0059s		0.0696s		11.7x 
+
+Evaluating 1000 samples. TTA steps: 6
+model_name            	rot	scale	base_acc	tta_acc	base_t/img	total_t/img	multiplier
+---------------------------------------------------------------------------------------------------------
+dinov2-small-imagenet1	235	1.0	0.7800		0.8940		0.0058s		0.0378s		6.5x
+vit-base-patch16-224  	235	1.0	0.6820		0.8550		0.0064s		0.0430s		6.7x
+
+

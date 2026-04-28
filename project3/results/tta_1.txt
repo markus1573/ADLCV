@@ -1,0 +1,5 @@
+Evaluating 1000 samples. TTA steps: 5
+model_name            	rot	scale	base_acc	tta_acc	base_t/img	total_t/img	multiplier
+---------------------------------------------------------------------------------------------------------
+dinov2-small-imagenet1	73	1.0	0.8280		0.8850		0.0056s		0.0323s		5.7x
+vit-base-patch16-224  	73	1.0	0.7540		0.8600		0.0062s		0.0357s		5.7x
