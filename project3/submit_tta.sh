@@ -20,6 +20,6 @@
 
 python3 test_tta.py \
     --model-names facebook/dinov2-small-imagenet1k-1-layer google/vit-base-patch16-224\
-    --rotations 235 \
+    --rotations 0 \
     --max-workers 16 \
     --tta-steps 6

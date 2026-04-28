@@ -23,3 +23,38 @@ dinov2-small-imagenet1	235	1.0	0.7800		0.8940		0.0058s		0.0378s		6.5x
 vit-base-patch16-224  	235	1.0	0.6820		0.8550		0.0064s		0.0430s		6.7x
 
 
+Evaluating 1000 samples. TTA steps: 6
+model_name            	rot	scale	base_acc	tta_acc	base_t/img	total_t/img	multiplier
+---------------------------------------------------------------------------------------------------------
+dinov2-small-imagenet1	0	1.0	0.9330		0.9110		0.0063s		0.0385s		6.1x
+vit-base-patch16-224  	0	1.0	0.9240		0.8870		0.0069s		0.0444s		6.4x
+
+
+Evaluating 1000 samples. TTA steps: 6
+model_name            	rot	scale	base_acc	tta_acc	base_t/img	total_t/img	multiplier
+---------------------------------------------------------------------------------------------------------
+dinov2-small-imagenet1	0	1.0	0.9330		0.9110		0.0066s		0.0409s		6.2x
+vit-base-patch16-224  	0	1.0	0.9240		0.8870		0.0075s		0.0462s		6.2x
+
+
+Evaluating 1000 samples. TTA steps: 6
+model_name            	rot	scale	base_acc	tta_acc	base_t/img	total_t/img	multiplier
+---------------------------------------------------------------------------------------------------------
+dinov2-small-imagenet1	180	1.0	0.8500		0.9110		0.0067s		0.0413s		6.2x
+vit-base-patch16-224  	180	1.0	0.7870		0.8870		0.0072s		0.0472s		6.5x
+
+
+Evaluating 1000 samples. TTA steps: 6 ---- maximum (not average)
+model_name            	rot	scale	base_acc	tta_acc	base_t/img	total_t/img	multiplier
+---------------------------------------------------------------------------------------------------------
+dinov2-small-imagenet1	0	1.0	0.9330		0.9170		0.0069s		0.0427s		6.2x
+vit-base-patch16-224  	0	1.0	0.9240		0.8980		0.0076s		0.0480s		6.4x
+
+
+Evaluating 1000 samples. TTA steps: 6
+model_name            	rot	scale	base_acc	tta_acc	base_t/img	total_t/img	multiplier
+---------------------------------------------------------------------------------------------------------
+dinov2-small-imagenet1	0	1.0	0.9330		0.9210		0.0069s		0.0424s		6.1x
+vit-base-patch16-224  	0	1.0	0.9240		0.8900		0.0073s		0.0468s		6.4x
+
+
