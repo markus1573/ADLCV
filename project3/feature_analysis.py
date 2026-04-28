@@ -101,10 +101,21 @@ class FeatureExtractor:
         for handle in self.hook_handles:
             handle.remove()
 
-def make_collate_fn(rotation: int):
+def make_collate_fn(rotation: int, scale: float = 1.0):
     def collate_fn(batch):
-        # We apply the target rotation and ensure they are all in RGB format as PIL Images
-        images = [x["image"].convert("RGB").rotate(rotation) for x in batch]
+        # Mirror test_imagenet.py exactly: rotate first, then scale
+        images = [x["image"].rotate(rotation) for x in batch]
+        
+        if scale != 1.0:
+            images = [
+                x.resize(
+                    (
+                        max(1, int(x.width * scale)),
+                        max(1, int(x.height * scale)),
+                    )
+                )
+                for x in images
+            ]
         return images
     return collate_fn
 
