@@ -30,7 +30,7 @@ def get_target_layers(model_name: str, model: torch.nn.Module) -> List[torch.nn.
     
     # Select 5 evenly distributed layers (first, 3 middle, last)
     total_layers = len(layers)
-    target_indices = np.linspace(0, total_layers - 1, 5, dtype=int)
+    target_indices = np.linspace(0, total_layers - 1, dtype=int)
     print(f"[{model_name}] Hooking into layer indices: {target_indices}")
     
     return [layers[i] for i in target_indices]
@@ -232,7 +232,7 @@ if __name__ == "__main__":
 
     # Plotting
     print("Generating plots...")
-    layer_ticks = ["First", "Early-Mid", "Mid", "Late-Mid", "Last"]
+    layer_ticks = [str(i) for i in range(12)]
     
     for metric_name, model_data in eval_results.items():
         plt.figure(figsize=(5 * len(models), 5))
