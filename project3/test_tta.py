@@ -181,7 +181,7 @@ def evaluate_accuracy(model_name, dataset, rotation, scale, batch_size, num_work
 def main():
     args = parse_args()
     dataset = load_dataset("Elriggs/imagenet-50-subset", cache_dir="./.data", split="validation")
-    dataset = dataset.select(range(min(args.n, len(dataset))))
+    dataset = dataset.shuffle(seed=42).select(range(min(args.n, len(dataset))))
 
     combos = list(product(args.model_names, args.rotations, args.scales))
     print(f"Evaluating {len(dataset)} samples. TTA steps: {args.tta_steps}")
