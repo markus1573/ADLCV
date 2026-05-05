@@ -140,8 +140,7 @@ if __name__ == "__main__":
     dataset = load_dataset(
         "Elriggs/imagenet-50-subset", cache_dir="./.data", split="validation", trust_remote_code=True
     )
-    dataset = dataset.select(range(min(args.n, len(dataset))))
-
+    dataset = dataset.shuffle(seed=42).select(range(min(args.n, len(dataset))))
     print("--- Running Feature-Level Analysis ---")
 
     results = {}
