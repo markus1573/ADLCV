@@ -37,23 +37,33 @@ def parse_args():
 
 def make_collate_fn(rotation, scale):
     def collate_fn(batch):
-        images = [x["image"].rotate(rotation) for x in batch]
+        images = [x["image"].convert("RGB").rotate(rotation) for x in batch]
         images = [x.resize((max(1, int(x.width * scale)), max(1, int(x.height * scale)))) for x in images]
         labels = [x["class_name"] for x in batch]
         return images, labels
     return collate_fn
 
+class Pipelines:
+    pipes = {}
+    def get_pipe(self, model_name, task, device_idx):
+        if model_name not in self.pipes:
+            self.pipes[model_name] = pipeline(
+                task=task,
+                model=model_name,
+                device=device_idx,
+                use_fast=True
+            )
+        return self.pipes[model_name]
+
+pipelines = Pipelines()
+
 def evaluate_accuracy(model_name, dataset, rotation, scale, batch_size, num_workers, device_idx, tta_steps):
     device = torch.device(f"cuda:{device_idx}" if device_idx >= 0 else "cpu")
     
     is_siglip = "siglip" in model_name
+    task = "zero-shot-image-classification" if is_siglip else "image-classification"
     
-    pipe = pipeline(
-        "zero-shot-image-classification" if is_siglip else "image-classification",
-        model=model_name,
-        device=device_idx,
-        use_fast=True
-    )
+    pipe = pipelines.get_pipe(model_name, task, device_idx)
     processor = pipe.image_processor
     model = pipe.model
     model.eval()
