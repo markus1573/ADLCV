@@ -163,7 +163,7 @@ def main():
     dataset = load_dataset(
         "Elriggs/imagenet-50-subset", cache_dir="./.data", split="validation"
     )
-    dataset = dataset.select(range(min(args.n, len(dataset))))
+    dataset = dataset.shuffle(seed=42).select(range(min(args.n, len(dataset))))
 
     combos = list(product(args.model_names, args.rotations, args.scales))
 

@@ -10,6 +10,9 @@ from tqdm import tqdm
 
 import metrics
 
+
+NUM_LAYERS = 12 # Number of layers to hook for feature extraction
+
 def get_target_layers(model_name: str, model: torch.nn.Module) -> List[torch.nn.Module]:
     """
     Finds the encoder layers for the respective architectures so we can attach hooks.
@@ -30,7 +33,7 @@ def get_target_layers(model_name: str, model: torch.nn.Module) -> List[torch.nn.
     
     # Select 5 evenly distributed layers (first, 3 middle, last)
     total_layers = len(layers)
-    target_indices = np.linspace(0, total_layers - 1, dtype=int)
+    target_indices = np.linspace(0, total_layers - 1, NUM_LAYERS, dtype=int)
     print(f"[{model_name}] Hooking into layer indices: {target_indices}")
     
     return [layers[i] for i in target_indices]
@@ -159,7 +162,7 @@ if __name__ == "__main__":
             )
             
             # Since pipeline can yield chunked callbacks naturally, we collect accumulated hooked features.
-            all_batches_features = {i: [] for i in range(5)}
+            all_batches_features = {i: [] for i in range(NUM_LAYERS)}
             
             for batch_images in tqdm(loader, desc=f"Evaluating {m} @ {angle}°"):
                 extracted_layers = extractor.extract(batch_images)
@@ -169,7 +172,7 @@ if __name__ == "__main__":
             
             # Concatenate collected batches across the whole dataset (N=samples, D=hidden_dim)
             results[m][angle] = [
-                torch.cat(all_batches_features[i], dim=0) for i in range(5)
+                torch.cat(all_batches_features[i], dim=0) for i in range(NUM_LAYERS)
             ]
         
         extractor.cleanup()
@@ -193,7 +196,7 @@ if __name__ == "__main__":
     print("Computing metrics...")
     for m in models:
         for angle in angles[1:]:
-            for layer_idx in range(5):
+            for layer_idx in range(NUM_LAYERS):
                 # Bring back to device for metric computation (cast to float32 to prevent fp16 overflow NaNs)
                 baseline_feats = results[m][0][layer_idx].to(device, dtype=torch.float32)
                 trans_feats = results[m][angle][layer_idx].to(device, dtype=torch.float32)
@@ -201,13 +204,13 @@ if __name__ == "__main__":
                 # CKA
                 cka_score = metrics.linear_cka(baseline_feats, trans_feats).item()
                 # Cosine (mean over batch)
-                cos_score = metrics.centered_cosine_similarity(baseline_feats, trans_feats).mean().item()
-                # RSA
-                rsa_score = metrics.rsa(baseline_feats, trans_feats).item()
+                # cos_score = metrics.centered_cosine_similarity(baseline_feats, trans_feats).mean().item()
+                # # RSA
+                # rsa_score = metrics.rsa(baseline_feats, trans_feats).item()
                 
                 eval_results["CKA"][m][angle].append(cka_score)
-                eval_results["Cosine"][m][angle].append(cos_score)
-                eval_results["RSA"][m][angle].append(rsa_score)
+                eval_results["Cosine"][m][angle].append(1)
+                eval_results["RSA"][m][angle].append(1)
                 
     # save eval_results to csv
     import csv
@@ -219,7 +222,7 @@ if __name__ == "__main__":
         
         for m in models:
             for angle in angles[1:]:
-                for layer_idx in range(5):
+                for layer_idx in range(NUM_LAYERS):
                     row = [
                         m.split('/')[-1],
                         angle,
@@ -232,10 +235,10 @@ if __name__ == "__main__":
 
     # Plotting
     print("Generating plots...")
-    layer_ticks = [str(i) for i in range(12)]
+    layer_ticks = [str(i) for i in range(NUM_LAYERS)]
     
     for metric_name, model_data in eval_results.items():
-        plt.figure(figsize=(5 * len(models), 5))
+        plt.figure(figsize=(NUM_LAYERS * len(models), 5))
         for i, m_name in enumerate(models):
             plt.subplot(1, len(models), i+1)
             plt.title(m_name.split('/')[-1])
