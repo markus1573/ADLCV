@@ -3,6 +3,8 @@ import numpy as np
 import argparse
 import time
 from itertools import product
+import csv
+from collections import Counter
 from transformers import pipeline
 from datasets import load_dataset
 from torch.utils.data import DataLoader
@@ -31,6 +33,8 @@ def parse_args():
     parser.add_argument("--device", type=int, default=DEFAULT_DEVICE, help="Device for pipeline (-1 for CPU, >=0 for CUDA device index).")
     parser.add_argument("--max-workers", type=int, default=DEFAULT_MAX_WORKERS, help="Number of concurrent combo evaluations.")
     parser.add_argument("--tta-steps", type=int, default=DEFAULT_TTA_STEPS, help="Number of TTA rotations")
+    parser.add_argument("--tta-method", type=str, choices=['entropy', 'confidence', 'majority'], default='entropy', help="Method to aggregate TTA scores.")
+    parser.add_argument("--output-csv", type=str, default="results_tta.csv", help="Path to save the results in CSV format.")
     return parser.parse_args()
 
 def make_collate_fn(rotation, scale):
@@ -57,7 +61,7 @@ class Pipelines:
     
 pipelines = Pipelines()
 
-def evaluate_accuracy(model_name, dataset, rotation, scale, batch_size, num_workers, device, tta_steps):
+def evaluate_accuracy(model_name, dataset, rotation, scale, batch_size, num_workers, device, tta_steps, tta_method):
     task = "image-classification"
     pipe = pipelines.get_pipe(model_name, task, device, batch_size)
     pipe_func = lambda images: pipe(images, batch_size=len(images), top_k=None)
@@ -106,35 +110,53 @@ def evaluate_accuracy(model_name, dataset, rotation, scale, batch_size, num_work
                     out_tta = pipe_func(tta_imgs)
                     tta_scores.append(out_tta)
                 
-                # Aggregate TTA scores per image using Minimum Entropy
+                # Aggregate TTA scores per image
                 tta_pred_labels = []
                 for i in range(len(images)):
-                    best_label = None
-                    min_entropy = float('inf')
-                    
-                    for step_idx in range(tta_steps):
-                        entropy = 0.0
-                        top_label = None
-                        top_score = -1.0
+                    if tta_method == 'entropy':
+                        best_label = None
+                        min_entropy = float('inf')
+                        for step_idx in range(tta_steps):
+                            entropy = 0.0
+                            top_label = None
+                            top_score = -1.0
+                            for item in tta_scores[step_idx][i]:
+                                l, s = item["label"], item["score"]
+                                if s > 0:
+                                    entropy -= s * np.log(s + 1e-12)
+                                if s > top_score:
+                                    top_score = s
+                                    top_label = l
+                            if entropy < min_entropy:
+                                min_entropy = entropy
+                                best_label = top_label
+                        tta_pred_labels.append(best_label)
                         
-                        # Calculate entropy and find the top label for this specific rotation step
-                        for item in tta_scores[step_idx][i]:
-                            l, s = item["label"], item["score"]
-                            # Add a tiny epsilon to avoid log(0)
-                            if s > 0:
-                                entropy -= s * np.log(s + 1e-12)
-                            
-                            # Keep track of the top prediction for this step
-                            if s > top_score:
-                                top_score = s
-                                top_label = l
+                    elif tta_method == 'confidence':
+                        best_label = None
+                        max_confidence = -1.0
+                        for step_idx in range(tta_steps):
+                            for item in tta_scores[step_idx][i]:
+                                if item["score"] > max_confidence:
+                                    max_confidence = item["score"]
+                                    best_label = item["label"]
+                        tta_pred_labels.append(best_label)
                         
-                        # We pick the highest-scoring label from whichever step had the lowest overall entropy/uncertainty
-                        if entropy < min_entropy:
-                            min_entropy = entropy
-                            best_label = top_label
-                            
-                    tta_pred_labels.append(best_label)
+                    elif tta_method == 'majority':
+                        step_top_labels = []
+                        for step_idx in range(tta_steps):
+                            top_label = None
+                            top_score = -1.0
+                            for item in tta_scores[step_idx][i]:
+                                if item["score"] > top_score:
+                                    top_score = item["score"]
+                                    top_label = item["label"]
+                            step_top_labels.append(top_label)
+                        
+                        # Majority vote
+                        vote_counts = Counter(step_top_labels)
+                        best_label = vote_counts.most_common(1)[0][0]
+                        tta_pred_labels.append(best_label)
                     
                 correct_tta += sum(p == t or t in p for p, t in zip(tta_pred_labels, labels))
                 
@@ -168,16 +190,25 @@ def main():
     print(f"{'model_name':<22}\t{'rot'}\t{'scale'}\t{'base_acc'}\t{'tta_acc'}\t{'base_t/img'}\t{'total_t/img'}\t{'multiplier'}")
     print("-" * 105)
 
+    csv_data = []
+    
     for combo in combos:
         model_name, rotation, scale = combo
         base_acc, tta_acc, base_time, total_time, multiplier = evaluate_accuracy(
             model_name, dataset, rotation, scale, args.batch_size, 
-            args.num_workers, args.device, args.tta_steps
+            args.num_workers, args.device, args.tta_steps, args.tta_method
         )
+        
+        csv_data.append([model_name, rotation, scale, base_acc, tta_acc, base_time, total_time, multiplier])
         
         m_name = model_name.split("/")[-1][:22] # truncate model name nicely for console
         print(f"{m_name:<22}\t{rotation}\t{scale}\t{base_acc:.4f}\t\t{tta_acc:.4f}\t\t{base_time:.4f}s\t\t{total_time:.4f}s\t\t{multiplier:.1f}x")
 
-    print("\n")
+    with open(args.output_csv, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["model_name", "rotation", "scale", "base_acc", "tta_acc", "base_t_img", "total_t_img", "multiplier"])
+        writer.writerows(csv_data)
+        
+    print(f"\nResults saved to {args.output_csv}\n")
 if __name__ == "__main__":
     main()
