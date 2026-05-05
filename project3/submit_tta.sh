@@ -20,6 +20,8 @@
 
 python3 test_tta.py \
     --model-names facebook/dinov2-small-imagenet1k-1-layer google/vit-base-patch16-224\
-    --rotations 280 \
+    --rotations {0..360..30} \
     --max-workers 16 \
-    --tta-steps 6
+    --tta-steps 6 \
+    --tta-method confidence \
+    --output-csv results/test_results_confidence.csv
