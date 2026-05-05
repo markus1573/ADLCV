@@ -123,6 +123,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--n", type=int, default=100, help="Number of images to process.")
     parser.add_argument("--batch-size", type=int, default=32, help="Batch size for pipeline.")
+    parser.add_argument("--angles", nargs="+", type=int, default=[0, 90, 180, 270], help="Rotation angles to evaluate.")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
@@ -133,7 +134,7 @@ if __name__ == "__main__":
         # "google/siglip-so400m-patch14-384"
     ]
     
-    angles = [0, 90, 180, 270]
+    angles = args.angles
 
     # Load dataset
     dataset = load_dataset(
@@ -209,6 +210,27 @@ if __name__ == "__main__":
                 eval_results["Cosine"][m][angle].append(cos_score)
                 eval_results["RSA"][m][angle].append(rsa_score)
                 
+    # save eval_results to csv
+    import csv
+    csv_path = os.path.join(out_dir, "feature_similarity_results.csv")
+    with open(csv_path, mode='w', newline='') as csv_file:
+        writer = csv.writer(csv_file)
+        header = ["Model", "Angle", "Layer", "CKA", "Cosine", "RSA"]
+        writer.writerow(header)
+        
+        for m in models:
+            for angle in angles[1:]:
+                for layer_idx in range(5):
+                    row = [
+                        m.split('/')[-1],
+                        angle,
+                        layer_idx,
+                        eval_results["CKA"][m][angle][layer_idx],
+                        eval_results["Cosine"][m][angle][layer_idx],
+                        eval_results["RSA"][m][angle][layer_idx]
+                    ]
+                    writer.writerow(row)
+
     # Plotting
     print("Generating plots...")
     layer_ticks = ["First", "Early-Mid", "Mid", "Late-Mid", "Last"]
