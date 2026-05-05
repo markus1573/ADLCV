@@ -40,13 +40,16 @@ class FeatureExtractor:
         self.device = device
         print(f"Loading {model_name}...")
         
+        # --- NEW: Determine pooling strategy ---
+        # Standard ViTs and DINOv2 use a [CLS] token. SigLIP uses GAP.
+        self.use_cls_token = "siglip" not in model_name
+        
         # Determine task type identical to test_imagenet.py
         if "siglip" in model_name:
             task = "zero-shot-image-classification"
         else:
             task = "image-classification"
             
-        # pipeline needs device argument as integer index or 'cpu'/'mps' string directly
         pipe_device = "mps" if device.type == "mps" else (device.index if device.type == "cuda" else "cpu")
         
         self.pipe = pipeline(
@@ -54,25 +57,30 @@ class FeatureExtractor:
             model=model_name,
             device=pipe_device,
             dtype=torch.float16 if device.type != "cpu" else torch.float32,
-            use_fast=True  # As in test_imagenet.py
+            use_fast=True
         )
         self.model = self.pipe.model
         self.model.eval()
 
-        # Storage for our intercepted features
         self.features = []
-        
-        # Attach hooks
         self.hook_handles = []
+        
         target_layers = get_target_layers(model_name, self.model)
         for layer in target_layers:
             self.hook_handles.append(layer.register_forward_hook(self._hook_fn))
 
     def _hook_fn(self, module, input, output):
-        # depending on the model, output might be a tuple. The hidden states are always the first element.
+        # hidden_state shape: [Batch, Sequence_Length, Hidden_Dim]
         hidden_state = output[0] if isinstance(output, tuple) else output
-        # Global Average Pool over the spatial/sequence dimension to get a [Batch, Dim] representation
-        pooled_state = hidden_state.mean(dim=1).detach().cpu()
+        
+        # --- NEW: Route the pooling logic ---
+        if self.use_cls_token:
+            # Extract the [CLS] token (always index 0 in the sequence dimension)
+            pooled_state = hidden_state[:, 0, :].detach().cpu()
+        else:
+            # SigLIP: Global Average Pool over the sequence dimension
+            pooled_state = hidden_state.mean(dim=1).detach().cpu()
+            
         self.features.append(pooled_state)
 
     def extract(self, images: List[Image.Image]) -> List[torch.Tensor]:
@@ -93,10 +101,21 @@ class FeatureExtractor:
         for handle in self.hook_handles:
             handle.remove()
 
-def make_collate_fn(rotation: int):
+def make_collate_fn(rotation: int, scale: float = 1.0):
     def collate_fn(batch):
-        # We apply the target rotation and ensure they are all in RGB format as PIL Images
-        images = [x["image"].convert("RGB").rotate(rotation) for x in batch]
+        # Mirror test_imagenet.py exactly: rotate first, then scale
+        images = [x["image"].rotate(rotation) for x in batch]
+        
+        if scale != 1.0:
+            images = [
+                x.resize(
+                    (
+                        max(1, int(x.width * scale)),
+                        max(1, int(x.height * scale)),
+                    )
+                )
+                for x in images
+            ]
         return images
     return collate_fn
 
@@ -104,6 +123,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--n", type=int, default=100, help="Number of images to process.")
     parser.add_argument("--batch-size", type=int, default=32, help="Batch size for pipeline.")
+    parser.add_argument("--angles", nargs="+", type=int, default=[0, 90, 180, 270], help="Rotation angles to evaluate.")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
@@ -114,7 +134,7 @@ if __name__ == "__main__":
         # "google/siglip-so400m-patch14-384"
     ]
     
-    angles = [0, 90, 180, 270]
+    angles = args.angles
 
     # Load dataset
     dataset = load_dataset(
@@ -190,6 +210,27 @@ if __name__ == "__main__":
                 eval_results["Cosine"][m][angle].append(cos_score)
                 eval_results["RSA"][m][angle].append(rsa_score)
                 
+    # save eval_results to csv
+    import csv
+    csv_path = os.path.join(out_dir, "feature_similarity_results.csv")
+    with open(csv_path, mode='w', newline='') as csv_file:
+        writer = csv.writer(csv_file)
+        header = ["Model", "Angle", "Layer", "CKA", "Cosine", "RSA"]
+        writer.writerow(header)
+        
+        for m in models:
+            for angle in angles[1:]:
+                for layer_idx in range(5):
+                    row = [
+                        m.split('/')[-1],
+                        angle,
+                        layer_idx,
+                        eval_results["CKA"][m][angle][layer_idx],
+                        eval_results["Cosine"][m][angle][layer_idx],
+                        eval_results["RSA"][m][angle][layer_idx]
+                    ]
+                    writer.writerow(row)
+
     # Plotting
     print("Generating plots...")
     layer_ticks = ["First", "Early-Mid", "Mid", "Late-Mid", "Last"]
