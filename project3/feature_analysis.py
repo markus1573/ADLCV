@@ -201,13 +201,13 @@ if __name__ == "__main__":
                 # CKA
                 cka_score = metrics.linear_cka(baseline_feats, trans_feats).item()
                 # Cosine (mean over batch)
-                cos_score = metrics.centered_cosine_similarity(baseline_feats, trans_feats).mean().item()
-                # RSA
-                rsa_score = metrics.rsa(baseline_feats, trans_feats).item()
+                # cos_score = metrics.centered_cosine_similarity(baseline_feats, trans_feats).mean().item()
+                # # RSA
+                # rsa_score = metrics.rsa(baseline_feats, trans_feats).item()
                 
                 eval_results["CKA"][m][angle].append(cka_score)
-                eval_results["Cosine"][m][angle].append(cos_score)
-                eval_results["RSA"][m][angle].append(rsa_score)
+                eval_results["Cosine"][m][angle].append(1)
+                eval_results["RSA"][m][angle].append(1)
                 
     # save eval_results to csv
     import csv
