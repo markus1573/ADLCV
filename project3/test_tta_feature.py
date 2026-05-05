@@ -84,17 +84,25 @@ def evaluate_accuracy(model_name, dataset, rotation, scale, batch_size, num_work
     with torch.inference_mode():
         for images, labels in tqdm(loader, desc=f"Eval {model_name}"):
             
+            # --- BASE EVALUATION ---
+            t0 = time.perf_counter()
+
             inputs = processor(images=images, return_tensors="pt").to(device)
             if inputs.pixel_values.dtype == torch.float32 and model.dtype == torch.float16:
                  inputs.pixel_values = inputs.pixel_values.half()
             
-            # --- BASE EVALUATION ---
-            t0 = time.perf_counter()
+            base_features = []
+            def base_hook_fn(module, args):
+                base_features.append(args[0].detach())
+                
+            base_hook_handle = model.classifier.register_forward_pre_hook(base_hook_fn)
             outputs_base = model(**inputs)
+            base_hook_handle.remove()
+            
             logits_base = outputs_base.logits
             preds_base = logits_base.argmax(dim=-1).cpu().numpy()
-            t1 = time.perf_counter()
             
+            t1 = time.perf_counter()
             time_base_total += (t1 - t0)
 
             pred_labels_base = [model.config.id2label[p] for p in preds_base]
@@ -114,6 +122,10 @@ def evaluate_accuracy(model_name, dataset, rotation, scale, batch_size, num_work
                 hook_handle = model.classifier.register_forward_pre_hook(hook_fn)
                 
                 for angle in tta_angles:
+                    if angle == 0.0:
+                        all_features.append(base_features[0])
+                        continue
+                        
                     tta_imgs = [img.rotate(angle) for img in images]
                     tta_inputs = processor(images=tta_imgs, return_tensors="pt").to(device)
                     if tta_inputs.pixel_values.dtype == torch.float32 and model.dtype == torch.float16:
